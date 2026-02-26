@@ -1,0 +1,23 @@
+{
+  "name": "polymarket-bot",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.3.1",
+    "@types/node-telegram-bot-api": "^0.64.13"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@hono/node-server": "^1.19.9",
+    "@polymarket/clob-client": "^5.2.4",
+    "ethers": "^6.16.0",
+    "hono": "^4.12.3",
+    "node-telegram-bot-api": "^0.67.0",
+    "openai": "^6.25.0"
+  }
+}
