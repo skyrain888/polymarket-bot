@@ -1,0 +1,23 @@
+docs/plans/2026-02-27-polymarket-trading-bot.md
+  25f66c900d2901be 1-2902
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "38a4b9f160ddfc95d22571249ab1b60ce720b887",
+  "prompts": {
+    "25f66c900d2901be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6123dde8-931e-448a-9fe3-85ce4f8710b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 2902,
+      "total_deletions": 0,
+      "accepted_lines": 2902,
+      "overriden_lines": 0
+    }
+  }
+}
