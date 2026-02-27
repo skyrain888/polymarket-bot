@@ -14,6 +14,7 @@ import { MarketMakerStrategy } from './strategies/market-maker/index.ts'
 import { ArbitrageStrategy } from './strategies/arbitrage/index.ts'
 import { MomentumStrategy } from './strategies/momentum/index.ts'
 import { FundamentalStrategy } from './strategies/fundamental/index.ts'
+import { CopyTradingStrategy } from './strategies/copy-trading/index.ts'
 import { Notifier } from './infrastructure/notifier/index.ts'
 import { createDashboard } from './infrastructure/dashboard/server.ts'
 
@@ -47,7 +48,9 @@ export async function startBot() {
     new ArbitrageStrategy({ ...config.strategies.arbitrage, minEdge: 0.05, maxOrderSize: 300 }, balance),
     new MomentumStrategy({ ...config.strategies.momentum, threshold: 0.3, maxOrderSize: 200 }, balance),
     new FundamentalStrategy({ ...config.strategies.fundamental, minConfidence: 0.65, minEdge: 0.08, maxOrderSize: 400 }, balance),
+    new CopyTradingStrategy(config.copyTrading),
   ]
+  const copyTradingStrategy = strategies[4] as CopyTradingStrategy
   const strategyEngine = new StrategyEngine(strategies)
 
   // Wire up event listeners
@@ -64,7 +67,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance() }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')
