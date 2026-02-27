@@ -5,11 +5,11 @@ export class ArchiveRepository {
   constructor(private db: Database) {}
 
   insertMany(trades: CopiedTrade[]): void {
-    const stmt = this.db.prepare(`
-      INSERT INTO copy_trades_archive (data, wallet, label, market_id, traded_at)
-      VALUES ($data, $wallet, $label, $marketId, $tradedAt)
-    `)
     const insertAll = this.db.transaction((rows: CopiedTrade[]) => {
+      const stmt = this.db.prepare(`
+        INSERT INTO copy_trades_archive (data, wallet, label, market_id, traded_at)
+        VALUES ($data, $wallet, $label, $marketId, $tradedAt)
+      `)
       for (const t of rows) {
         stmt.run({
           $data: JSON.stringify(t),
@@ -23,16 +23,17 @@ export class ArchiveRepository {
     insertAll(trades)
   }
 
-  findAll(opts: { wallet?: string; since?: number; page?: number; pageSize?: number } = {}): { rows: (CopiedTrade & { archivedAt: string })[]; total: number } {
-    const { wallet, since, page = 0, pageSize = 100 } = opts
+  findAll(opts: { label?: string; since?: number; page?: number; pageSize?: number } = {}): { rows: (CopiedTrade & { archivedAt: string })[]; total: number } {
+    const { label, since, page = 0, pageSize = 100 } = opts
     const conditions: string[] = []
     const params: Record<string, unknown> = {}
 
-    if (wallet) { conditions.push('label = $wallet'); params.$wallet = wallet }
+    if (label) { conditions.push('label = $label'); params.$label = label }
     if (since != null) { conditions.push('traded_at >= $since'); params.$since = since }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-    const total = (this.db.query(`SELECT COUNT(*) as n FROM copy_trades_archive ${where}`).get(params as any) as any).n as number
+    const countParams = { ...params }
+    const total = (this.db.query(`SELECT COUNT(*) as n FROM copy_trades_archive ${where}`).get(countParams as any) as any).n as number
 
     params.$limit = pageSize
     params.$offset = page * pageSize
