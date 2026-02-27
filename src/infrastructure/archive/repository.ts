@@ -32,13 +32,13 @@ export class ArchiveRepository {
     if (since != null) { conditions.push('traded_at >= $since'); params.$since = since }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-    const total = (this.db.query(`SELECT COUNT(*) as n FROM copy_trades_archive ${where}`).get(params) as any).n as number
+    const total = (this.db.query(`SELECT COUNT(*) as n FROM copy_trades_archive ${where}`).get(params as any) as any).n as number
 
     params.$limit = pageSize
     params.$offset = page * pageSize
     const raw = this.db.query(
       `SELECT data, archived_at FROM copy_trades_archive ${where} ORDER BY traded_at DESC LIMIT $limit OFFSET $offset`
-    ).all(params) as { data: string; archived_at: string }[]
+    ).all(params as any) as { data: string; archived_at: string }[]
 
     const rows = raw.map(r => ({ ...(JSON.parse(r.data) as CopiedTrade), archivedAt: r.archived_at }))
     return { rows, total }
