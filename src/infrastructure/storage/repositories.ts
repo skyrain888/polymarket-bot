@@ -104,4 +104,9 @@ export class SignalRepository {
     const rows = this.db.query(`SELECT * FROM signals WHERE market_id = ? ORDER BY created_at DESC LIMIT ?`).all(marketId, limit) as any[]
     return rows.map(r => ({ id: r.id, marketId: r.market_id, provider: r.provider, sentiment: r.sentiment, confidence: r.confidence, summary: r.summary, rawResponse: r.raw_response }))
   }
+
+  findAll(limit = 50): SignalRow[] {
+    const rows = this.db.query(`SELECT * FROM signals ORDER BY created_at DESC LIMIT ?`).all(limit) as any[]
+    return rows.map(r => ({ id: r.id, marketId: r.market_id, provider: r.provider, sentiment: r.sentiment, confidence: r.confidence, summary: r.summary, rawResponse: r.raw_response }))
+  }
 }
