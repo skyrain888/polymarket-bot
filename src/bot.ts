@@ -93,7 +93,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService: screenerService ?? undefined }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')
