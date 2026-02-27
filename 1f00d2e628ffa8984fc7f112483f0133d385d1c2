@@ -1,0 +1,23 @@
+.gitignore
+  2351b9462b815207 31-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "1f00d2e628ffa8984fc7f112483f0133d385d1c2",
+  "prompts": {
+    "2351b9462b815207": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed852246-2720-41e4-822c-496837069c9a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
