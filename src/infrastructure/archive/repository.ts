@@ -10,14 +10,18 @@ export class ArchiveRepository {
         INSERT INTO copy_trades_archive (data, wallet, label, market_id, traded_at)
         VALUES ($data, $wallet, $label, $marketId, $tradedAt)
       `)
-      for (const t of rows) {
-        stmt.run({
-          $data: JSON.stringify(t),
-          $wallet: t.walletAddress,
-          $label: t.label,
-          $marketId: t.marketId,
-          $tradedAt: t.timestamp,
-        })
+      try {
+        for (const t of rows) {
+          stmt.run({
+            $data: JSON.stringify(t),
+            $wallet: t.walletAddress,
+            $label: t.label,
+            $marketId: t.marketId,
+            $tradedAt: t.timestamp,
+          })
+        }
+      } finally {
+        stmt.finalize()
       }
     })
     insertAll(trades)
