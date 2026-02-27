@@ -1,3 +1,5 @@
+import type { CopyTradingConfig } from '../strategies/copy-trading/types.ts'
+
 export type BotMode = 'backtest' | 'paper' | 'live'
 export type LLMProviderName = 'claude' | 'openai' | 'gemini' | 'ollama'
 
@@ -43,5 +45,6 @@ export interface BotConfig {
     discord: { webhookUrl: string } | null
   }
   dashboard: { port: number }
+  copyTrading: CopyTradingConfig
   dbPath: string
 }
