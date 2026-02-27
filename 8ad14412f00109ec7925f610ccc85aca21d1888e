@@ -1,0 +1,88 @@
+package.json
+  246159bad4e2ed61 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "8ad14412f00109ec7925f610ccc85aca21d1888e",
+  "prompts": {
+    "22ba27d3eeae3c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f4cea9d-d77b-4f42-8d22-6741fd1f462a",
+        "model": "<synthetic>"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 195,
+      "total_deletions": 36,
+      "accepted_lines": 170,
+      "overriden_lines": 0
+    },
+    "246159bad4e2ed61": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a1c341-33c3-4195-99e0-398bbb1b3a15",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 199,
+      "total_deletions": 0,
+      "accepted_lines": 199,
+      "overriden_lines": 0
+    },
+    "542a2543cc9cf0d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0206fb82-6601-450e-951f-078b976d7c82",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 52,
+      "total_deletions": 52,
+      "accepted_lines": 16,
+      "overriden_lines": 0
+    },
+    "6c073d4b4eb105fd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5e26b13-c736-4f95-917d-1c56217d1321",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 465,
+      "total_deletions": 181,
+      "accepted_lines": 361,
+      "overriden_lines": 0
+    },
+    "6c47782cc63e0d4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "da302128-7661-4533-87b7-17373b34285e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 201,
+      "total_deletions": 46,
+      "accepted_lines": 179,
+      "overriden_lines": 0
+    },
+    "f330dbf4df365277": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b91d9f4-54ed-49df-a508-c0369418809b",
+        "model": "claude-opus-4-6-thinking"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 321,
+      "total_deletions": 74,
+      "accepted_lines": 250,
+      "overriden_lines": 1
+    }
+  }
+}
