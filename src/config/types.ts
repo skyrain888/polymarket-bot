@@ -1,4 +1,5 @@
 import type { CopyTradingConfig } from '../strategies/copy-trading/types.ts'
+export type { CopyTradingConfig }
 
 export type BotMode = 'backtest' | 'paper' | 'live'
 export type LLMProviderName = 'claude' | 'openai' | 'gemini' | 'ollama'
