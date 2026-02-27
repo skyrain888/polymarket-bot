@@ -1,0 +1,25 @@
+src/config/index.ts
+  2351b9462b815207 2,50-58
+.env.example
+  2351b9462b815207 22-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "35deaca90d9f8eaca4a8d739d2630b71b3864dd7",
+  "prompts": {
+    "2351b9462b815207": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed852246-2720-41e4-822c-496837069c9a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 18,
+      "total_deletions": 0,
+      "accepted_lines": 18,
+      "overriden_lines": 0
+    }
+  }
+}
