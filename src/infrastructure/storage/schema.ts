@@ -51,4 +51,14 @@ CREATE TABLE IF NOT EXISTS account_snapshots (
   snapshot_date TEXT NOT NULL DEFAULT (date('now')),
   UNIQUE(snapshot_date)
 );
+
+CREATE TABLE IF NOT EXISTS copy_trades_archive (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  data        TEXT NOT NULL,
+  wallet      TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  market_id   TEXT NOT NULL,
+  timestamp   INTEGER NOT NULL,
+  archived_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `
