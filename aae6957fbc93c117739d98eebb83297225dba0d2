@@ -1,0 +1,23 @@
+src/strategies/copy-trading/types.ts
+  fa76a4d5d6c0479d 31-35,43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "aae6957fbc93c117739d98eebb83297225dba0d2",
+  "prompts": {
+    "fa76a4d5d6c0479d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf658ebf-ec8b-4902-b942-620d16168685",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
