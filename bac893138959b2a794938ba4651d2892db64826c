@@ -1,0 +1,25 @@
+src/infrastructure/dashboard/server.ts
+  df5ffbbcc792822e 14-15,30,204-308,939-1004
+src/infrastructure/dashboard/views.ts
+  df5ffbbcc792822e 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "bac893138959b2a794938ba4651d2892db64826c",
+  "prompts": {
+    "df5ffbbcc792822e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "197e4e8c-2a36-49e9-922b-4b15806e6182",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 175,
+      "total_deletions": 0,
+      "accepted_lines": 175,
+      "overriden_lines": 0
+    }
+  }
+}
