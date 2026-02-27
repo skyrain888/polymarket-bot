@@ -1,0 +1,23 @@
+docs/plans/2026-02-27-copy-trading-design.md
+  7cf31ff9c89c63cd 1-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "628c3e09f75c0bfe133e8201357f5f7e1814d897",
+  "prompts": {
+    "7cf31ff9c89c63cd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b266843-ff01-4114-a671-853384758c63",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 222,
+      "total_deletions": 1,
+      "accepted_lines": 222,
+      "overriden_lines": 0
+    }
+  }
+}
