@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "wallets": [
+    {
+      "address": "0x03e8a544e97eeff5753bc1e90d46e5ef22af1697",
+      "label": "weflyhigh",
+      "sizeMode": "fixed",
+      "fixedAmount": 50,
+      "maxCopiesPerMarket": 100
+    },
+    {
+      "address": "0x1d0034134e339a309700ff2d34e99fa2d48b0313",
+      "label": "0x1d0034134e",
+      "sizeMode": "fixed",
+      "fixedAmount": 50,
+      "maxCopiesPerMarket": 100
+    }
+  ],
+  "maxDailyTradesPerWallet": 10,
+  "maxWalletExposureUsdc": 500,
+  "maxTotalExposureUsdc": 2000,
+  "pollIntervalSeconds": 5
+}

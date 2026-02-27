@@ -17,9 +17,16 @@ import { FundamentalStrategy } from './strategies/fundamental/index.ts'
 import { CopyTradingStrategy } from './strategies/copy-trading/index.ts'
 import { Notifier } from './infrastructure/notifier/index.ts'
 import { createDashboard } from './infrastructure/dashboard/server.ts'
+import { ConfigStore } from './infrastructure/config-store.ts'
 
 export async function startBot() {
   const config = loadConfig()
+  const configStore = new ConfigStore()
+  const persisted = configStore.load()
+  if (persisted) {
+    config.copyTrading = persisted
+    console.log('[transBoot] Loaded copy-trading config from JSON file')
+  }
   console.log(`[transBoot] Starting in ${config.mode.toUpperCase()} mode...`)
 
   // Infrastructure
@@ -67,15 +74,46 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')
-  const INTERVAL_MS = 30_000
 
+  function getIntervalMs() {
+    return Math.max(1000, (config.copyTrading.pollIntervalSeconds ?? 30) * 1000)
+  }
+
+  let ticking = false
   async function tick() {
+    if (ticking) {
+      console.log('[tick] Previous tick still running, skipping')
+      return
+    }
+    ticking = true
     try {
+      // Copy trading runs independently - does not need market data
+      if (copyTradingStrategy.enabled) {
+        try {
+          const intent = await copyTradingStrategy.evaluate({} as any, {} as any)
+          if (intent) {
+            console.log(`[tick] Copy trade intent: ${intent.side} $${intent.size.toFixed(2)} on ${intent.marketId.slice(0, 12)}...`)
+            const exposure = positionTracker.getTotalExposure()
+            const stratExposure = positionTracker.getStrategyExposure(intent.strategyId)
+            const check = riskManager.check({ strategyId: intent.strategyId, size: intent.size, price: intent.price, volume24h: 0, currentExposure: exposure, strategyExposure: stratExposure })
+            if (check.allowed) {
+              await orderManager.execute(intent)
+            } else {
+              console.log(`[tick] Copy trade rejected by risk manager: ${check.reason}`)
+              orderManager.reject(intent, check.reason!)
+            }
+          }
+        } catch (err) {
+          console.error('[tick] Copy trading error:', err)
+        }
+      }
+
       const markets = await polyClient.getMarkets()
+      console.log(`[tick] Fetched ${markets.length} markets`)
       const freshBalance = await polyClient.getBalance()
       riskManager.updateBalance(freshBalance)
 
@@ -112,11 +150,20 @@ export async function startBot() {
       }
     } catch (err) {
       console.error('[tick] Error:', err)
+    } finally {
+      ticking = false
     }
   }
 
-  // Run first tick immediately
+  // Run first tick immediately, then schedule next with dynamic interval
   await tick()
-  setInterval(tick, INTERVAL_MS)
-  console.log(`[transBoot] Running. Next tick in ${INTERVAL_MS / 1000}s`)
+  function scheduleNext() {
+    const ms = getIntervalMs()
+    setTimeout(async () => {
+      await tick()
+      scheduleNext()
+    }, ms)
+  }
+  scheduleNext()
+  console.log(`[transBoot] Running. Poll interval: ${getIntervalMs() / 1000}s (configurable)`)
 }

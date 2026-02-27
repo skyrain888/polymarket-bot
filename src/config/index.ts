@@ -55,6 +55,7 @@ export function loadConfig(): BotConfig {
       maxDailyTradesPerWallet: Number(process.env.COPY_MAX_DAILY_TRADES ?? 10),
       maxWalletExposureUsdc: Number(process.env.COPY_MAX_WALLET_EXPOSURE ?? 500),
       maxTotalExposureUsdc: Number(process.env.COPY_MAX_TOTAL_EXPOSURE ?? 2000),
+      pollIntervalSeconds: Number(process.env.COPY_POLL_INTERVAL ?? 30),
     },
     dbPath: process.env.DB_PATH ?? './data/transBoot.db',
   }

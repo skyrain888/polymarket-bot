@@ -13,7 +13,7 @@ export function layout(title: string, body: string): string {
     nav { background: #1a1a2e; padding: 1rem 2rem; display: flex; gap: 2rem; align-items: center; }
     nav a { color: #7c83fd; text-decoration: none; }
     nav a:hover { color: #fff; }
-    .container { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    .container { padding: 1.5rem; max-width: 100%; margin: 0; }
     .card { background: #1a1a2e; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
     .stat { font-size: 2rem; font-weight: bold; color: #7c83fd; }
     .label { font-size: 0.85rem; color: #888; margin-top: 0.25rem; }
@@ -32,13 +32,13 @@ export function layout(title: string, body: string): string {
 <body>
   <nav>
     <strong style="color:#7c83fd">transBoot</strong>
-    <a href="/">Overview</a>
-    <a href="/strategies">Strategies</a>
-    <a href="/positions">Positions</a>
-    <a href="/orders">Orders</a>
-    <a href="/signals">Signals</a>
-    <a href="/config">Config</a>
-    <a href="/copy-trading">Copy Trading</a>
+    <a href="/">总览</a>
+    <a href="/strategies">策略</a>
+    <a href="/positions">持仓</a>
+    <a href="/orders">订单</a>
+    <a href="/signals">信号</a>
+    <a href="/config">配置</a>
+    <a href="/copy-trading">跟单</a>
   </nav>
   <div class="container" hx-get="/api/refresh" hx-trigger="every 5s" hx-swap="none">
     ${body}
@@ -54,13 +54,13 @@ export function overviewView(data: {
   openPositions: number
 }): string {
   const pnlClass = data.todayPnl >= 0 ? 'positive' : 'negative'
-  return layout('Overview', `
-    <h2 style="margin-bottom:1rem">Overview</h2>
+  return layout('总览', `
+    <h2 style="margin-bottom:1rem">总览</h2>
     <div class="grid">
-      <div class="card"><div class="stat">$${data.balance.toFixed(2)}</div><div class="label">Balance (USDC)</div></div>
-      <div class="card"><div class="stat ${pnlClass}">${data.todayPnl >= 0 ? '+' : ''}$${data.todayPnl.toFixed(2)}</div><div class="label">Today PnL</div></div>
-      <div class="card"><div class="stat">${data.activeStrategies}</div><div class="label">Active Strategies</div></div>
-      <div class="card"><div class="stat">${data.openPositions}</div><div class="label">Open Positions</div></div>
+      <div class="card"><div class="stat">$${data.balance.toFixed(2)}</div><div class="label">余额 (USDC)</div></div>
+      <div class="card"><div class="stat ${pnlClass}">${data.todayPnl >= 0 ? '+' : ''}$${data.todayPnl.toFixed(2)}</div><div class="label">今日盈亏</div></div>
+      <div class="card"><div class="stat">${data.activeStrategies}</div><div class="label">活跃策略</div></div>
+      <div class="card"><div class="stat">${data.openPositions}</div><div class="label">持仓数量</div></div>
     </div>
   `)
 }
