@@ -11,6 +11,8 @@ import type { ConfigStore } from '../config-store.ts'
 import type { SizeMode } from '../../strategies/copy-trading/types.ts'
 import type { ArchiveService } from '../archive/service.ts'
 import type { ArchiveRepository } from '../archive/repository.ts'
+import type { ScreenerService } from '../../strategies/copy-trading/screener/index.ts'
+import type { ScreenerResult, ScreenerState } from '../../strategies/copy-trading/screener/types.ts'
 import { overviewView, layout } from './views.ts'
 
 interface DashboardDeps {
@@ -25,6 +27,7 @@ interface DashboardDeps {
   configStore?: ConfigStore
   archiveService?: ArchiveService
   archiveRepo?: ArchiveRepository
+  screenerService?: ScreenerService
 }
 
 export function createDashboard(deps: DashboardDeps, port: number) {
@@ -196,6 +199,111 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       }
     }
     return { statusLabel, statusClass, statusKey }
+  }
+
+  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }): string {
+    const lastRun = cfg.lastRunAt ? new Date(cfg.lastRunAt * 1000).toLocaleString() : '从未'
+    return `
+    <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+        <button hx-post="/screener/run" hx-target="#screener-content" hx-swap="innerHTML"
+          style="background:#7c83fd;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;cursor:pointer;font-size:1rem"
+          ${state.status === 'running' ? 'disabled' : ''}>
+          ${state.status === 'running' ? '筛选中...' : '开始筛选'}
+        </button>
+        <form hx-post="/screener/schedule" hx-target="#schedule-status" hx-swap="innerHTML" style="display:flex;gap:0.5rem;align-items:center">
+          <label style="color:#888;font-size:0.9rem">定时:</label>
+          <select name="schedule" style="background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.3rem;border-radius:4px">
+            <option value="disabled" ${cfg.scheduleCron === 'disabled' ? 'selected' : ''}>关闭</option>
+            <option value="daily" ${cfg.scheduleCron === 'daily' ? 'selected' : ''}>每日</option>
+          </select>
+          <button type="submit" style="background:#3a3a4e;color:#e0e0e0;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer">保存</button>
+          <span id="schedule-status"></span>
+        </form>
+        <span style="color:#888;font-size:0.85rem">上次筛选: ${lastRun}</span>
+      </div>
+    </div>
+    <div id="screener-content">
+      ${state.status === 'running' ? screenerProgressHtml(state) : screenerResultsHtml(state)}
+    </div>`
+  }
+
+  function screenerProgressHtml(state: ScreenerState): string {
+    return `
+    <div class="card" hx-get="/screener/progress" hx-trigger="every 2s" hx-swap="outerHTML">
+      <div style="margin-bottom:0.5rem;color:#888">${state.progressLabel}</div>
+      <div style="background:#2a2a3e;border-radius:4px;height:24px;overflow:hidden">
+        <div style="background:#7c83fd;height:100%;width:${state.progress}%;transition:width 0.3s;display:flex;align-items:center;justify-content:center;font-size:0.8rem;color:#fff">
+          ${state.progress}%
+        </div>
+      </div>
+    </div>`
+  }
+
+  function screenerResultsHtml(state: ScreenerState): string {
+    if (state.lastError) {
+      return `<div class="card"><span class="badge badge-err">筛选失败: ${state.lastError}</span></div>`
+    }
+    if (state.results.length === 0) {
+      return `<div class="card" style="text-align:center;color:#888;padding:3rem">点击"开始筛选"从 Polymarket 排行榜发现优质跟单对象</div>`
+    }
+
+    const levelBadge = (l: string) => l === 'recommended' ? '<span class="badge badge-ok">推荐</span>'
+      : l === 'cautious' ? '<span class="badge badge-warn">谨慎</span>'
+      : '<span class="badge badge-err">不推荐</span>'
+
+    const cards = state.results.map((r: ScreenerResult, i: number) => `
+      <div class="card" style="margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
+          <div>
+            <span style="color:#7c83fd;font-weight:bold;font-size:1.1rem">#${i + 1} ${r.username || r.address.slice(0, 10)}</span>
+            <span style="color:#888;font-size:0.8rem;margin-left:0.5rem">${r.address.slice(0, 6)}...${r.address.slice(-4)}</span>
+            <span style="margin-left:0.5rem">排名 #${r.rank}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            ${levelBadge(r.recommendation.level)}
+            <span style="background:#2a2a3e;padding:2px 8px;border-radius:4px;font-size:0.85rem">综合 ${r.totalScore}</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.75rem;font-size:0.85rem">
+          <div><span style="color:#888">PnL:</span> <span class="${r.pnl >= 0 ? 'positive' : 'negative'}">$${r.pnl.toFixed(0)}</span></div>
+          <div><span style="color:#888">成交量:</span> $${r.volume >= 1000 ? (r.volume / 1000).toFixed(1) + 'K' : r.volume.toFixed(0)}</div>
+          <div><span style="color:#888">持仓:</span> $${r.totalPortfolioValue >= 1000 ? (r.totalPortfolioValue / 1000).toFixed(1) + 'K' : r.totalPortfolioValue.toFixed(0)}</div>
+          <div style="display:flex;gap:0.3rem">
+            <span style="color:#2ecc71;font-size:0.75rem">收益${r.scores.returns}</span>
+            <span style="color:#3498db;font-size:0.75rem">活跃${r.scores.activity}</span>
+            <span style="color:#f39c12;font-size:0.75rem">规模${r.scores.portfolioSize}</span>
+            <span style="color:#9b59b6;font-size:0.75rem">分散${r.scores.diversification}</span>
+          </div>
+        </div>
+        <div style="background:#12121e;border-radius:6px;padding:0.75rem;margin-bottom:0.75rem">
+          <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">跟单理由:</strong> ${r.recommendation.reasoning}</div>
+          <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">推荐策略:</strong> ${r.recommendation.suggestedSizeMode === 'fixed' ? '固定金额 $' + r.recommendation.suggestedAmount : '比例 ' + (r.recommendation.suggestedAmount * 100).toFixed(0) + '%'} | 单市场上限: ${r.recommendation.suggestedMaxCopiesPerMarket}次</div>
+          <div style="font-size:0.85rem;color:#e74c3c">风险提示: ${r.recommendation.riskWarning}</div>
+        </div>
+        <div style="text-align:right" id="add-wallet-${i}">
+          <form hx-post="/screener/add-wallet" hx-target="#add-wallet-${i}" hx-swap="innerHTML" style="display:inline">
+            <input type="hidden" name="address" value="${r.address}">
+            <input type="hidden" name="label" value="${r.username || r.address.slice(0, 10)}">
+            <input type="hidden" name="sizeMode" value="${r.recommendation.suggestedSizeMode}">
+            <input type="hidden" name="amount" value="${r.recommendation.suggestedAmount}">
+            <input type="hidden" name="maxCopiesPerMarket" value="${r.recommendation.suggestedMaxCopiesPerMarket}">
+            <button type="submit" style="background:#1e4d2b;color:#2ecc71;border:1px solid #2ecc71;padding:0.4rem 1rem;border-radius:4px;cursor:pointer">+ 添加到跟单</button>
+          </form>
+        </div>
+      </div>
+    `).join('')
+
+    const recommendedCount = state.results.filter((r: ScreenerResult) => r.recommendation.level === 'recommended').length
+    const screenedAt = state.results[0]?.screenedAt
+    const timeStr = screenedAt ? new Date(screenedAt * 1000).toLocaleString() : ''
+
+    return `
+    <div style="margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.9rem;color:#888">共 ${state.results.length} 个钱包 | ${recommendedCount} 个推荐 | 筛选时间: ${timeStr}</span>
+    </div>
+    ${cards}`
   }
 
   // Filter parameters for trades card
@@ -826,6 +934,72 @@ export function createDashboard(deps: DashboardDeps, port: number) {
         ${pagination}
       </div>
     `))
+  })
+
+  // ── Screener Routes ──────────────────────────────────────────
+
+  app.get('/screener', (c) => {
+    const screener = deps.screenerService
+    const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
+    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
+    return c.html(layout('智能筛选', screenerPageHtml(state, cfg)))
+  })
+
+  app.post('/screener/run', async (c) => {
+    const screener = deps.screenerService
+    if (!screener) return c.text('Screener not configured', 500)
+    screener.run()
+    return c.html(screenerProgressHtml(screener.getState()))
+  })
+
+  app.get('/screener/progress', (c) => {
+    const screener = deps.screenerService
+    const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
+    if (state.status === 'done' || state.status === 'error') {
+      return c.html(screenerResultsHtml(state))
+    }
+    return c.html(screenerProgressHtml(state))
+  })
+
+  app.get('/screener/results', (c) => {
+    const screener = deps.screenerService
+    const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
+    return c.html(screenerResultsHtml(state))
+  })
+
+  app.post('/screener/add-wallet', async (c) => {
+    const body = await c.req.parseBody()
+    const address = String(body.address ?? '')
+    const label = String(body.label ?? '')
+    const sizeMode = String(body.sizeMode ?? 'fixed') as 'fixed' | 'proportional'
+    const amount = Number(body.amount ?? 30)
+    const maxCopiesPerMarket = Number(body.maxCopiesPerMarket ?? 2)
+
+    if (!address) return c.text('Missing address', 400)
+
+    const existing = deps.config.copyTrading.wallets.find(w => w.address.toLowerCase() === address.toLowerCase())
+    if (existing) return c.html('<span class="badge badge-warn">已在跟单列表中</span>')
+
+    deps.config.copyTrading.wallets.push({
+      address: address.toLowerCase(),
+      label: label || address.slice(0, 10),
+      sizeMode,
+      fixedAmount: sizeMode === 'fixed' ? amount : undefined,
+      proportionPct: sizeMode === 'proportional' ? amount : undefined,
+      maxCopiesPerMarket,
+    })
+    applyConfig()
+    return c.html('<span class="badge badge-ok">已添加到跟单</span>')
+  })
+
+  app.post('/screener/schedule', async (c) => {
+    const body = await c.req.parseBody()
+    const schedule = String(body.schedule ?? 'disabled')
+    deps.screenerService?.updateConfig({
+      enabled: schedule === 'daily',
+      scheduleCron: schedule as 'daily' | 'disabled',
+    })
+    return c.html(`<span class="badge badge-ok">${schedule === 'daily' ? '已开启每日筛选' : '已关闭定时筛选'}</span>`)
   })
 
   // SSE endpoint for real-time updates
