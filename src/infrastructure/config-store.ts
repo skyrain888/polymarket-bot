@@ -19,8 +19,12 @@ export class ConfigStore {
   }
 
   save(config: CopyTradingConfig): void {
-    const dir = dirname(this.filePath)
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-    writeFileSync(this.filePath, JSON.stringify(config, null, 2), 'utf-8')
+    try {
+      const dir = dirname(this.filePath)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      writeFileSync(this.filePath, JSON.stringify(config, null, 2), 'utf-8')
+    } catch (err) {
+      console.error(`[ConfigStore] Failed to write ${this.filePath}:`, err)
+    }
   }
 }

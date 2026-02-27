@@ -26,8 +26,10 @@ export async function startBot() {
   const configStore = new ConfigStore()
   const persisted = configStore.load()
   if (persisted) {
-    config.copyTrading = persisted
+    config.copyTrading = { ...config.copyTrading, ...persisted }
     console.log('[transBoot] Loaded copy-trading config from JSON file')
+  } else {
+    console.log('[transBoot] No persisted copy-trading config found, using env defaults')
   }
   console.log(`[transBoot] Starting in ${config.mode.toUpperCase()} mode...`)
 

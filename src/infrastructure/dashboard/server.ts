@@ -245,6 +245,8 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     }
 
     const totalPnl = filtered.reduce((sum, cp) => sum + cp.pnl, 0)
+    const settledPnl = filtered.filter(cp => cp.statusKey === 'settled-win' || cp.statusKey === 'settled-loss' || cp.statusKey === 'settled').reduce((sum, cp) => sum + cp.pnl, 0)
+    const settledExpiredPnl = filtered.filter(cp => cp.statusKey === 'settled-win' || cp.statusKey === 'settled-loss' || cp.statusKey === 'settled' || cp.statusKey === 'expired').reduce((sum, cp) => sum + cp.pnl, 0)
 
     const copyRows = filtered.slice().reverse().map(cp => {
       return `<tr>
@@ -347,11 +349,19 @@ export function createDashboard(deps: DashboardDeps, port: number) {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
           <h3 style="color:#7c83fd;margin:0">最近跟单记录</h3>
           <div style="display:flex;align-items:center;gap:0.5rem">
-            ${filtered.length > 0 ? `<span style="padding:0.4rem 0.75rem;background:${totalPnl >= 0 ? '#1e4d2b22' : '#4d1e1e22'};border:1px solid ${totalPnl >= 0 ? '#1e4d2b' : '#4d1e1e'};border-radius:4px">
-              <span style="color:#888;font-size:0.85rem">总盈亏:</span>
-              <span style="color:${totalPnl >= 0 ? '#2ecc71' : '#e74c3c'};font-weight:700;margin-left:0.25rem">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
+            ${filtered.length > 0 ? `<span style="padding:0.3rem 0.6rem;background:${totalPnl >= 0 ? '#1e4d2b22' : '#4d1e1e22'};border:1px solid ${totalPnl >= 0 ? '#1e4d2b' : '#4d1e1e'};border-radius:4px;font-size:0.8rem">
+              <span style="color:#888">实时:</span>
+              <span style="color:${totalPnl >= 0 ? '#2ecc71' : '#e74c3c'};font-weight:700">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
             </span>
-            <span style="color:#888;font-size:0.8rem;margin-left:0.25rem">(${filtered.length}条)</span>` : ''}
+            <span style="padding:0.3rem 0.6rem;background:${settledPnl >= 0 ? '#1e4d2b22' : '#4d1e1e22'};border:1px solid ${settledPnl >= 0 ? '#1e4d2b' : '#4d1e1e'};border-radius:4px;font-size:0.8rem">
+              <span style="color:#888">已结算:</span>
+              <span style="color:${settledPnl >= 0 ? '#2ecc71' : '#e74c3c'};font-weight:700">${settledPnl >= 0 ? '+' : ''}$${settledPnl.toFixed(2)}</span>
+            </span>
+            <span style="padding:0.3rem 0.6rem;background:${settledExpiredPnl >= 0 ? '#1e4d2b22' : '#4d1e1e22'};border:1px solid ${settledExpiredPnl >= 0 ? '#1e4d2b' : '#4d1e1e'};border-radius:4px;font-size:0.8rem">
+              <span style="color:#888">已结算+已截止:</span>
+              <span style="color:${settledExpiredPnl >= 0 ? '#2ecc71' : '#e74c3c'};font-weight:700">${settledExpiredPnl >= 0 ? '+' : ''}$${settledExpiredPnl.toFixed(2)}</span>
+            </span>
+            <span style="color:#888;font-size:0.8rem">(${filtered.length}条)</span>` : ''}
             <label style="color:#888;font-size:0.8rem;margin-left:0.5rem">自动刷新:</label>
             <select onchange="${refreshJs}" style="${selStyle}">
               ${opts}
@@ -413,6 +423,10 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       : ''
 
     const archiveCfg = cfg.archive ?? { enabled: false, autoArchiveDays: 30 }
+    const dateInputStyle = 'background:#2a2a3e;border:1px solid #3a3a5e;color:#e0e0e0;padding:6px 10px;border-radius:4px;font-size:0.85rem'
+    const yesterday = new Date(Date.now() - 86400000)
+    const yesterdayStart = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}T00:00`
+    const yesterdayEnd = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}T23:59`
     const archivePanel = `
       <div class="card" style="margin-bottom:1rem">
         <h3 style="margin-bottom:1rem;color:#7c83fd">归档设置</h3>
@@ -438,6 +452,26 @@ export function createDashboard(deps: DashboardDeps, port: number) {
             立即归档
           </button>
         </form>
+        <div style="border-top:1px solid #3a3a5e;margin-top:1rem;padding-top:1rem">
+          <h4 style="color:#e74c3c;font-size:0.9rem;margin-bottom:0.75rem">清除活跃数据</h4>
+          <form hx-post="/copy-trading/archive/clear" hx-target="#ct-page" hx-swap="innerHTML"
+                style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+            <input type="hidden" name="target" value="active">
+            <div>
+              <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">起始时间</label>
+              <input name="from" type="datetime-local" value="${yesterdayStart}" required style="${dateInputStyle}">
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">结束时间</label>
+              <input name="to" type="datetime-local" value="${yesterdayEnd}" required style="${dateInputStyle}">
+            </div>
+            <button type="submit"
+                    onclick="return confirm('确定清除所选日期范围内的活跃跟单数据？此操作不可撤销！')"
+                    style="background:#4d1e1e;color:#e74c3c;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;height:34px">
+              清除活跃数据
+            </button>
+          </form>
+        </div>
       </div>`
 
     return `
@@ -653,7 +687,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     if (maxWallet > 0) deps.config.copyTrading.maxWalletExposureUsdc = maxWallet
     if (maxTotal > 0) deps.config.copyTrading.maxTotalExposureUsdc = maxTotal
     applyConfig()
-    return c.html(await copyTradingBody())
+    return c.html(await copyTradingBody('风控限制已保存'))
   })
 
   // POST: save archive config
@@ -672,6 +706,25 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       deps.config.copyTrading.archive?.autoArchiveDays ?? 30
     ) ?? 0
     return c.html(await copyTradingBody(`已归档 ${count} 条记录`))
+  })
+
+  // POST: clear data by date range
+  app.post('/copy-trading/archive/clear', async (c) => {
+    const body = await c.req.parseBody()
+    const fromStr = String(body.from ?? '')
+    const toStr = String(body.to ?? '')
+    if (!fromStr || !toStr) {
+      if (String(body.target) === 'archive') return c.redirect('/copy-trading/history')
+      return c.html(await copyTradingBody('请选择起始和结束日期'))
+    }
+    const from = Math.floor(new Date(fromStr).getTime() / 1000)
+    const to = Math.floor(new Date(toStr).getTime() / 1000) + 59
+    const target = String(body.target) as 'archive' | 'active' | 'all'
+    const count = deps.archiveService?.clearData(from, to, target) ?? 0
+    if (target === 'archive') {
+      return c.redirect('/copy-trading/history')
+    }
+    return c.html(await copyTradingBody(`已清除 ${count} 条记录`))
   })
 
   // GET: archive history page
@@ -730,6 +783,11 @@ export function createDashboard(deps: DashboardDeps, port: number) {
 
     const filterJs = `window.location='/copy-trading/history?'+new URLSearchParams({wallet:document.getElementById('h-wallet').value,days:document.getElementById('h-days').value,page:'0'}).toString()`
 
+    const historyDateInputStyle = 'background:#2a2a3e;border:1px solid #3a3a5e;color:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:0.8rem'
+    const hYesterday = new Date(Date.now() - 86400000)
+    const hYesterdayStart = `${hYesterday.getFullYear()}-${String(hYesterday.getMonth() + 1).padStart(2, '0')}-${String(hYesterday.getDate()).padStart(2, '0')}T00:00`
+    const hYesterdayEnd = `${hYesterday.getFullYear()}-${String(hYesterday.getMonth() + 1).padStart(2, '0')}-${String(hYesterday.getDate()).padStart(2, '0')}T23:59`
+
     return c.html(layout('历史存档', `
       <h2 style="margin-bottom:1rem">历史存档</h2>
       <div class="card">
@@ -744,6 +802,23 @@ export function createDashboard(deps: DashboardDeps, port: number) {
           </div>
           <a href="/copy-trading" style="margin-left:auto;color:#5b9bd5;font-size:0.85rem">← 返回跟单</a>
         </div>
+        <form method="POST" action="/copy-trading/archive/clear"
+              style="display:flex;gap:0.75rem;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap;padding:0.75rem;background:#1a1a2e;border-radius:4px;border:1px solid #3a3a5e">
+          <input type="hidden" name="target" value="archive">
+          <div>
+            <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">起始时间</label>
+            <input name="from" type="datetime-local" value="${hYesterdayStart}" required style="${historyDateInputStyle}">
+          </div>
+          <div>
+            <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">结束时间</label>
+            <input name="to" type="datetime-local" value="${hYesterdayEnd}" required style="${historyDateInputStyle}">
+          </div>
+          <button type="submit"
+                  onclick="return confirm('确定清除所选日期范围内的归档数据？此操作不可撤销！')"
+                  style="background:#4d1e1e;color:#e74c3c;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;height:34px;font-size:0.85rem">
+            清除归档数据
+          </button>
+        </form>
         <table>
           <thead><tr><th>时间</th><th>钱包</th><th>市场</th><th>结果</th><th>方向</th><th>原始金额</th><th>入场价</th><th>跟单金额</th><th>交易哈希</th><th>归档时间</th></tr></thead>
           <tbody>${archiveRows || '<tr><td colspan="10" style="text-align:center;color:#888">暂无归档记录</td></tr>'}</tbody>

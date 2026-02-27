@@ -31,6 +31,7 @@ export class CopyTradingStrategy implements Strategy {
   ) {
     this.graphClient = graphClient ?? new GraphClient()
     this.loadCopies()
+    this.rebuildDailyCounters()
   }
 
   get enabled() { return this.config.enabled }
@@ -43,11 +44,39 @@ export class CopyTradingStrategy implements Strategy {
     this.lastSeenTxHash.clear()
     this.lastSeenTimestamp.clear()
     this.initialised.clear()
-    this.copiedWalletMarkets.clear()
+    this.rebuildDailyCounters()
+  }
+
+  private rebuildDailyCounters() {
     this.dailyTradeCount.clear()
+    this.copiedWalletMarkets.clear()
     this.walletExposure.clear()
     this.totalExposure = 0
     this.lastResetDay = new Date().toDateString()
+
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayCutoff = Math.floor(todayStart.getTime() / 1000)
+
+    for (const c of this.recentCopies) {
+      if (c.timestamp < todayCutoff) continue
+      const count = this.dailyTradeCount.get(c.walletAddress) ?? 0
+      this.dailyTradeCount.set(c.walletAddress, count + 1)
+      const exp = this.walletExposure.get(c.walletAddress) ?? 0
+      this.walletExposure.set(c.walletAddress, exp + c.copiedSize)
+      this.totalExposure += c.copiedSize
+      const wmKey = `${c.walletAddress}:${c.marketId}`
+      const wmCount = this.copiedWalletMarkets.get(wmKey) ?? 0
+      this.copiedWalletMarkets.set(wmKey, wmCount + 1)
+    }
+
+    const walletCounts = [...this.dailyTradeCount.entries()].map(([addr, n]) => {
+      const label = this.config.wallets.find(w => w.address === addr)?.label ?? addr.slice(0, 10)
+      return `${label}:${n}`
+    }).join(', ')
+    if (walletCounts) {
+      console.log(`[CopyTrading] Rebuilt daily counters from history: ${walletCounts}`)
+    }
   }
 
   getRecentCopies(limit = 50): CopiedTrade[] {
@@ -58,6 +87,15 @@ export class CopyTradingStrategy implements Strategy {
     const set = new Set(txHashes)
     this.recentCopies = this.recentCopies.filter(c => !set.has(c.txHash))
     this.saveCopies()
+  }
+
+  removeCopiesByDateRange(from: number, to: number): number {
+    const before = this.recentCopies.length
+    this.recentCopies = this.recentCopies.filter(
+      c => c.timestamp < from || c.timestamp > to
+    )
+    this.saveCopies()
+    return before - this.recentCopies.length
   }
 
   async getRecentCopiesWithPnl(limit = 50): Promise<{ copies: (CopiedTrade & { currentPrice: number; pnl: number; marketStatus?: MarketStatus })[]; totalPnl: number }> {

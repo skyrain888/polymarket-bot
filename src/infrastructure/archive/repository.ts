@@ -49,6 +49,13 @@ export class ArchiveRepository {
     return { rows, total }
   }
 
+  deleteByDateRange(from: number, to: number): number {
+    const result = this.db.prepare(
+      'DELETE FROM copy_trades_archive WHERE traded_at >= $from AND traded_at <= $to'
+    ).run({ $from: from, $to: to })
+    return result.changes
+  }
+
   countAll(): number {
     return ((this.db.query('SELECT COUNT(*) as n FROM copy_trades_archive').get() as any).n) as number
   }

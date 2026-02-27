@@ -29,6 +29,21 @@ export class ArchiveService {
     }
   }
 
+  clearData(from: number, to: number, target: 'archive' | 'active' | 'all'): number {
+    let count = 0
+    try {
+      if (target === 'archive' || target === 'all') {
+        count += this.repo.deleteByDateRange(from, to)
+      }
+      if (target === 'active' || target === 'all') {
+        count += this.strategy.removeCopiesByDateRange(from, to)
+      }
+    } catch (err) {
+      console.error('[Archive] Clear data failed:', err)
+    }
+    return count
+  }
+
   /**
    * Archive records older than `overrideDays` days (or config value).
    * When called with overrideDays, bypasses the enabled flag (manual trigger).

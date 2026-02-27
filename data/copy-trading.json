@@ -16,8 +16,12 @@
       "maxCopiesPerMarket": 100
     }
   ],
-  "maxDailyTradesPerWallet": 10,
+  "maxDailyTradesPerWallet": 30,
   "maxWalletExposureUsdc": 500,
   "maxTotalExposureUsdc": 2000,
-  "pollIntervalSeconds": 5
+  "pollIntervalSeconds": 5,
+  "archive": {
+    "enabled": true,
+    "autoArchiveDays": 1
+  }
 }
