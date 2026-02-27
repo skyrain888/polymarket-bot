@@ -54,6 +54,12 @@ export class CopyTradingStrategy implements Strategy {
     return this.recentCopies.slice(-limit)
   }
 
+  removeCopies(txHashes: string[]): void {
+    const set = new Set(txHashes)
+    this.recentCopies = this.recentCopies.filter(c => !set.has(c.txHash))
+    this.saveCopies()
+  }
+
   async getRecentCopiesWithPnl(limit = 50): Promise<{ copies: (CopiedTrade & { currentPrice: number; pnl: number; marketStatus?: MarketStatus })[]; totalPnl: number }> {
     const copies = this.getRecentCopies(limit)
     if (copies.length === 0) return { copies: [], totalPnl: 0 }
