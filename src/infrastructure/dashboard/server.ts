@@ -674,6 +674,85 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     return c.html(await copyTradingBody(`已归档 ${count} 条记录`))
   })
 
+  // GET: archive history page
+  app.get('/copy-trading/history', async (c) => {
+    const wallet = c.req.query('wallet') || undefined
+    const days = c.req.query('days') ? Number(c.req.query('days')) : undefined
+    const page = Math.max(0, Number(c.req.query('page') ?? 0))
+    const pageSize = 100
+
+    const since = days != null ? Math.floor(Date.now() / 1000) - days * 86400 : undefined
+    const { rows, total } = deps.archiveRepo?.findAll({ label: wallet, since, page, pageSize })
+      ?? { rows: [], total: 0 }
+
+    const walletLabels = [...new Set(deps.config.copyTrading.wallets.map(w => w.label))]
+    const selStyle = 'background:#2a2a3e;border:1px solid #3a3a5e;color:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:0.8rem'
+
+    const walletOpts = [`<option value="">全部钱包</option>`]
+      .concat(walletLabels.map(l => `<option value="${l}"${wallet === l ? ' selected' : ''}>${l}</option>`))
+      .join('')
+
+    const dayOpts = [
+      { v: '', label: '全部时间' },
+      { v: '7', label: '近7天' },
+      { v: '30', label: '近30天' },
+      { v: '90', label: '近90天' },
+      { v: '365', label: '近1年' },
+    ].map(o => `<option value="${o.v}"${String(days ?? '') === o.v ? ' selected' : ''}>${o.label}</option>`).join('')
+
+    const archiveRows = rows.map(r => `<tr>
+      <td style="color:#888;font-size:0.8rem">${new Date(r.timestamp * 1000).toLocaleString()}</td>
+      <td>${r.label}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.85rem">${r.title || r.marketId.slice(0, 16) + '…'}</td>
+      <td><span style="color:#c0a0ff;font-weight:600">${r.outcome || '-'}</span></td>
+      <td><span class="badge ${r.side === 'buy' ? 'badge-ok' : 'badge-err'}">${r.side}</span></td>
+      <td>$${r.originalSize.toFixed(2)}</td>
+      <td>$${r.price.toFixed(3)}</td>
+      <td>$${r.copiedSize.toFixed(2)}</td>
+      <td style="font-size:0.8rem"><a href="https://polygonscan.com/tx/${r.txHash}" target="_blank" style="color:#5b9bd5;text-decoration:none">${r.txHash.slice(0, 10)}…</a></td>
+      <td style="color:#888;font-size:0.75rem">${r.archivedAt}</td>
+    </tr>`).join('')
+
+    const totalPages = Math.ceil(total / pageSize)
+    const buildQs = (p: number) => {
+      const ps = new URLSearchParams()
+      if (wallet) ps.set('wallet', wallet)
+      if (days != null) ps.set('days', String(days))
+      ps.set('page', String(p))
+      return ps.toString()
+    }
+    const pagination = totalPages > 1 ? `
+      <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem">
+        ${page > 0 ? `<a href="/copy-trading/history?${buildQs(page - 1)}" style="color:#5b9bd5">← 上一页</a>` : ''}
+        <span style="color:#888">第 ${page + 1} / ${totalPages} 页 (共 ${total} 条)</span>
+        ${page < totalPages - 1 ? `<a href="/copy-trading/history?${buildQs(page + 1)}" style="color:#5b9bd5">下一页 →</a>` : ''}
+      </div>` : `<div style="color:#888;font-size:0.8rem;text-align:right;margin-top:0.5rem">共 ${total} 条归档记录</div>`
+
+    const filterJs = `window.location='/copy-trading/history?'+new URLSearchParams({wallet:document.getElementById('h-wallet').value,days:document.getElementById('h-days').value,page:'0'}).toString()`
+
+    return c.html(layout('历史存档', `
+      <h2 style="margin-bottom:1rem">历史存档</h2>
+      <div class="card">
+        <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <label style="color:#888;font-size:0.8rem">钱包:</label>
+            <select id="h-wallet" onchange="${filterJs}" style="${selStyle}">${walletOpts}</select>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <label style="color:#888;font-size:0.8rem">时间:</label>
+            <select id="h-days" onchange="${filterJs}" style="${selStyle}">${dayOpts}</select>
+          </div>
+          <a href="/copy-trading" style="margin-left:auto;color:#5b9bd5;font-size:0.85rem">← 返回跟单</a>
+        </div>
+        <table>
+          <thead><tr><th>时间</th><th>钱包</th><th>市场</th><th>结果</th><th>方向</th><th>原始金额</th><th>入场价</th><th>跟单金额</th><th>交易哈希</th><th>归档时间</th></tr></thead>
+          <tbody>${archiveRows || '<tr><td colspan="10" style="text-align:center;color:#888">暂无归档记录</td></tr>'}</tbody>
+        </table>
+        ${pagination}
+      </div>
+    `))
+  })
+
   // SSE endpoint for real-time updates
   app.get('/events', (c) => streamSSE(c, async (stream) => {
     while (true) {
