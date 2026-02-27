@@ -389,7 +389,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
   }
 
   // Helper: render the copy-trading page body (reused by GET and POST)
-  async function copyTradingBody() {
+  async function copyTradingBody(toast?: string) {
     const cfg = deps.config.copyTrading
     const wallets = cfg.wallets
 
@@ -407,7 +407,41 @@ export function createDashboard(deps: DashboardDeps, port: number) {
 
     const enabled = cfg.enabled
     const tradesCard = await copyTradingTradesCard()
+
+    const toastHtml = toast
+      ? `<div style="background:#1e4d2b;border:1px solid #2ecc71;color:#2ecc71;padding:0.5rem 1rem;border-radius:4px;margin-bottom:1rem">${toast}</div>`
+      : ''
+
+    const archiveCfg = cfg.archive ?? { enabled: false, autoArchiveDays: 30 }
+    const archivePanel = `
+      <div class="card" style="margin-bottom:1rem">
+        <h3 style="margin-bottom:1rem;color:#7c83fd">归档设置</h3>
+        <form hx-post="/copy-trading/archive/config" hx-target="#ct-page" hx-swap="innerHTML"
+              style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0.75rem;align-items:end">
+          <div>
+            <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">启用自动归档</label>
+            <input name="enabled" type="checkbox" ${archiveCfg.enabled ? 'checked' : ''}
+                   style="width:16px;height:16px;margin-top:6px">
+          </div>
+          <div>
+            <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">超过 N 天自动归档</label>
+            <input name="autoArchiveDays" type="number" min="1" max="365" value="${archiveCfg.autoArchiveDays}"
+                   style="width:100%;background:#2a2a3e;border:1px solid #3a3a5e;color:#e0e0e0;padding:6px 10px;border-radius:4px">
+          </div>
+          <button type="submit"
+                  style="background:#1e3a5e;color:#5b9bd5;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;height:34px">
+            保存
+          </button>
+          <button type="button"
+                  hx-post="/copy-trading/archive/now" hx-target="#ct-page" hx-swap="innerHTML"
+                  style="background:#3a2a1e;color:#e0a84c;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;height:34px">
+            立即归档
+          </button>
+        </form>
+      </div>`
+
     return `
+      ${toastHtml}
       <h2 style="margin-bottom:0.5rem">跟单交易</h2>
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
         <span style="color:#888">状态: <span class="badge ${enabled ? 'badge-ok' : 'badge-err'}">${enabled ? '已启用' : '已禁用'}</span></span>
@@ -471,6 +505,8 @@ export function createDashboard(deps: DashboardDeps, port: number) {
           <button type="submit" style="background:#1e4d2b;color:#2ecc71;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;height:34px">添加</button>
         </form>
       </div>
+
+      ${archivePanel}
 
       ${tradesCard}
     `
@@ -618,6 +654,24 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     if (maxTotal > 0) deps.config.copyTrading.maxTotalExposureUsdc = maxTotal
     applyConfig()
     return c.html(await copyTradingBody())
+  })
+
+  // POST: save archive config
+  app.post('/copy-trading/archive/config', async (c) => {
+    const body = await c.req.parseBody()
+    const enabled = body.enabled === 'on'
+    const days = Math.max(1, Number(body.autoArchiveDays ?? 30))
+    deps.config.copyTrading.archive = { enabled, autoArchiveDays: days }
+    applyConfig()
+    return c.html(await copyTradingBody())
+  })
+
+  // POST: manual archive now
+  app.post('/copy-trading/archive/now', async (c) => {
+    const count = deps.archiveService?.archiveNow(
+      deps.config.copyTrading.archive?.autoArchiveDays ?? 30
+    ) ?? 0
+    return c.html(await copyTradingBody(`已归档 ${count} 条记录`))
   })
 
   // SSE endpoint for real-time updates
