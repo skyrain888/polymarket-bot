@@ -12,7 +12,7 @@ const WEIGHTS = {
   diversification: 0.20,
 } as const
 
-const MS_PER_DAY = 86_400_000
+const SECONDS_PER_DAY = 86_400
 
 export class ScoringEngine {
   score(profiles: TraderProfile[]): ScoredTrader[] {
@@ -70,9 +70,9 @@ export class ScoringEngine {
   private computeRecencyScore(trades: TraderTrade[]): number {
     if (trades.length === 0) return 0
 
-    const now = Date.now()
-    const mostRecent = Math.max(...trades.map((t) => t.timestamp))
-    const daysSince = (now - mostRecent) / MS_PER_DAY
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const mostRecent = trades.reduce((max, t) => t.timestamp > max ? t.timestamp : max, 0)
+    const daysSince = (nowSeconds - mostRecent) / SECONDS_PER_DAY
 
     if (daysSince < 1) return 50
     if (daysSince < 3) return 40
@@ -127,7 +127,10 @@ export class ScoringEngine {
       marketValues.set(pos.conditionId, current + pos.currentValue)
     }
 
-    const maxMarketValue = Math.max(...Array.from(marketValues.values()))
+    let maxMarketValue = 0
+    for (const v of marketValues.values()) {
+      if (v > maxMarketValue) maxMarketValue = v
+    }
     const maxMarketPct = maxMarketValue / totalValue
     const concentrationScore = (1 - maxMarketPct) * 50
 

@@ -241,9 +241,13 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     </div>`
   }
 
+  function escHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  }
+
   function screenerResultsHtml(state: ScreenerState): string {
     if (state.lastError) {
-      return `<div class="card"><span class="badge badge-err">筛选失败: ${state.lastError}</span></div>`
+      return `<div class="card"><span class="badge badge-err">筛选失败: ${escHtml(state.lastError)}</span></div>`
     }
     if (state.results.length === 0) {
       return `<div class="card" style="text-align:center;color:#888;padding:3rem">点击"开始筛选"从 Polymarket 排行榜发现优质跟单对象</div>`
@@ -257,7 +261,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       <div class="card" style="margin-bottom:0.75rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
           <div>
-            <span style="color:#7c83fd;font-weight:bold;font-size:1.1rem">#${i + 1} ${r.username || r.address.slice(0, 10)}</span>
+            <span style="color:#7c83fd;font-weight:bold;font-size:1.1rem">#${i + 1} ${escHtml(r.username || r.address.slice(0, 10))}</span>
             <span style="color:#888;font-size:0.8rem;margin-left:0.5rem">${r.address.slice(0, 6)}...${r.address.slice(-4)}</span>
             <span style="margin-left:0.5rem">排名 #${r.rank}</span>
           </div>
@@ -278,9 +282,9 @@ export function createDashboard(deps: DashboardDeps, port: number) {
           </div>
         </div>
         <div style="background:#12121e;border-radius:6px;padding:0.75rem;margin-bottom:0.75rem">
-          <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">跟单理由:</strong> ${r.recommendation.reasoning}</div>
+          <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">跟单理由:</strong> ${escHtml(r.recommendation.reasoning)}</div>
           <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">推荐策略:</strong> ${r.recommendation.suggestedSizeMode === 'fixed' ? '固定金额 $' + r.recommendation.suggestedAmount : '比例 ' + (r.recommendation.suggestedAmount * 100).toFixed(0) + '%'} | 单市场上限: ${r.recommendation.suggestedMaxCopiesPerMarket}次</div>
-          <div style="font-size:0.85rem;color:#e74c3c">风险提示: ${r.recommendation.riskWarning}</div>
+          <div style="font-size:0.85rem;color:#e74c3c">风险提示: ${escHtml(r.recommendation.riskWarning)}</div>
         </div>
         <div style="text-align:right" id="add-wallet-${i}">
           <form hx-post="/screener/add-wallet" hx-target="#add-wallet-${i}" hx-swap="innerHTML" style="display:inline">
@@ -948,7 +952,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
   app.post('/screener/run', async (c) => {
     const screener = deps.screenerService
     if (!screener) return c.text('Screener not configured', 500)
-    screener.run()
+    screener.run().catch((err) => console.error('[Screener] Manual run failed:', err))
     return c.html(screenerProgressHtml(screener.getState()))
   })
 
@@ -995,11 +999,12 @@ export function createDashboard(deps: DashboardDeps, port: number) {
   app.post('/screener/schedule', async (c) => {
     const body = await c.req.parseBody()
     const schedule = String(body.schedule ?? 'disabled')
+    const validSchedule = schedule === 'daily' ? 'daily' as const : 'disabled' as const
     deps.screenerService?.updateConfig({
-      enabled: schedule === 'daily',
-      scheduleCron: schedule as 'daily' | 'disabled',
+      enabled: validSchedule === 'daily',
+      scheduleCron: validSchedule,
     })
-    return c.html(`<span class="badge badge-ok">${schedule === 'daily' ? '已开启每日筛选' : '已关闭定时筛选'}</span>`)
+    return c.html(`<span class="badge badge-ok">${validSchedule === 'daily' ? '已开启每日筛选' : '已关闭定时筛选'}</span>`)
   })
 
   // SSE endpoint for real-time updates
