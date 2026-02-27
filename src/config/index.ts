@@ -1,4 +1,5 @@
 import type { BotConfig } from './types.ts'
+import type { WalletConfig } from '../strategies/copy-trading/types.ts'
 
 export function loadConfig(): BotConfig {
   const mode = (process.env.BOT_MODE ?? 'paper') as BotConfig['mode']
@@ -46,6 +47,15 @@ export function loadConfig(): BotConfig {
         : null,
     },
     dashboard: { port: Number(process.env.DASHBOARD_PORT ?? 3000) },
+    copyTrading: {
+      enabled: process.env.COPY_TRADING_ENABLED === 'true',
+      wallets: process.env.COPY_WALLETS
+        ? JSON.parse(process.env.COPY_WALLETS) as WalletConfig[]
+        : [],
+      maxDailyTradesPerWallet: Number(process.env.COPY_MAX_DAILY_TRADES ?? 10),
+      maxWalletExposureUsdc: Number(process.env.COPY_MAX_WALLET_EXPOSURE ?? 500),
+      maxTotalExposureUsdc: Number(process.env.COPY_MAX_TOTAL_EXPOSURE ?? 2000),
+    },
     dbPath: process.env.DB_PATH ?? './data/transBoot.db',
   }
 }
