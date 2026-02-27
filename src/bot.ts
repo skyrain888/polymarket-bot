@@ -18,6 +18,8 @@ import { CopyTradingStrategy } from './strategies/copy-trading/index.ts'
 import { Notifier } from './infrastructure/notifier/index.ts'
 import { createDashboard } from './infrastructure/dashboard/server.ts'
 import { ConfigStore } from './infrastructure/config-store.ts'
+import { ArchiveRepository } from './infrastructure/archive/repository.ts'
+import { ArchiveService } from './infrastructure/archive/service.ts'
 
 export async function startBot() {
   const config = loadConfig()
@@ -58,6 +60,13 @@ export async function startBot() {
     new CopyTradingStrategy(config.copyTrading),
   ]
   const copyTradingStrategy = strategies[4] as CopyTradingStrategy
+  const archiveRepo = new ArchiveRepository(db)
+  const archiveService = new ArchiveService(
+    archiveRepo,
+    copyTradingStrategy,
+    () => config.copyTrading.archive,
+  )
+  archiveService.start()
   const strategyEngine = new StrategyEngine(strategies)
 
   // Wire up event listeners
@@ -74,7 +83,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')

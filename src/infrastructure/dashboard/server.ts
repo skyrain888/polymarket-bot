@@ -9,6 +9,8 @@ import type { CopyTradingStrategy } from '../../strategies/copy-trading/index.ts
 import type { BotConfig } from '../../config/types.ts'
 import type { ConfigStore } from '../config-store.ts'
 import type { SizeMode } from '../../strategies/copy-trading/types.ts'
+import type { ArchiveService } from '../archive/service.ts'
+import type { ArchiveRepository } from '../archive/repository.ts'
 import { overviewView, layout } from './views.ts'
 
 interface DashboardDeps {
@@ -21,6 +23,8 @@ interface DashboardDeps {
   config: BotConfig
   copyTradingStrategy?: CopyTradingStrategy
   configStore?: ConfigStore
+  archiveService?: ArchiveService
+  archiveRepo?: ArchiveRepository
 }
 
 export function createDashboard(deps: DashboardDeps, port: number) {
