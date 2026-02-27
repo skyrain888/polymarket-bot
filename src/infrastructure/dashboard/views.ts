@@ -38,6 +38,7 @@ export function layout(title: string, body: string): string {
     <a href="/orders">Orders</a>
     <a href="/signals">Signals</a>
     <a href="/config">Config</a>
+    <a href="/copy-trading">Copy Trading</a>
   </nav>
   <div class="container" hx-get="/api/refresh" hx-trigger="every 5s" hx-swap="none">
     ${body}
