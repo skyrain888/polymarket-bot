@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "0b172b7ebd65457928b8b1f0a6762771f90def13",
+  "prompts": {
+    "df5ffbbcc792822e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "197e4e8c-2a36-49e9-922b-4b15806e6182",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 223,
+      "total_deletions": 0,
+      "accepted_lines": 223,
+      "overriden_lines": 0
+    }
+  }
+}
