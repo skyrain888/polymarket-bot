@@ -1,0 +1,33 @@
+src/infrastructure/config-store.ts
+  5a713da64d070884 22,25-28
+src/bot.ts
+  5a713da64d070884 29,31-32
+src/strategies/copy-trading/index.ts
+  5a713da64d070884 34,47-50,52,56-79,92-100
+src/infrastructure/dashboard/server.ts
+  5a713da64d070884 248-249,352-354,356-364,426-429,455-474,690,711-729,786-790,805-821
+src/infrastructure/archive/service.ts
+  5a713da64d070884 32-46
+src/infrastructure/archive/repository.ts
+  5a713da64d070884 52-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "e0a8c5e089f622a03a359d529dca691ae353d4cd",
+  "prompts": {
+    "5a713da64d070884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c7a36ec-eb70-471b-b2e4-8924fa35d55a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 161,
+      "total_deletions": 20,
+      "accepted_lines": 150,
+      "overriden_lines": 0
+    }
+  }
+}
