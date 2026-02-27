@@ -20,6 +20,7 @@ import { createDashboard } from './infrastructure/dashboard/server.ts'
 import { ConfigStore } from './infrastructure/config-store.ts'
 import { ArchiveRepository } from './infrastructure/archive/repository.ts'
 import { ArchiveService } from './infrastructure/archive/service.ts'
+import { ScreenerService } from './strategies/copy-trading/screener/index.ts'
 
 export async function startBot() {
   const config = loadConfig()
@@ -69,6 +70,13 @@ export async function startBot() {
     () => config.copyTrading.archive,
   )
   archiveService.start()
+  const screenerService = config.llm.apiKey
+    ? new ScreenerService(config.llm.apiKey, config.llm.model)
+    : null
+  if (screenerService) {
+    screenerService.start()
+    console.log('[transBoot] Wallet screener initialized')
+  }
   const strategyEngine = new StrategyEngine(strategies)
 
   // Wire up event listeners
@@ -85,7 +93,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')
