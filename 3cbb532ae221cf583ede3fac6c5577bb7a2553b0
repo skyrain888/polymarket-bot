@@ -1,0 +1,23 @@
+src/bot.ts
+  2351b9462b815207 17,51,53,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "3cbb532ae221cf583ede3fac6c5577bb7a2553b0",
+  "prompts": {
+    "2351b9462b815207": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed852246-2720-41e4-822c-496837069c9a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 1,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
