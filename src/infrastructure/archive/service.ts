@@ -2,6 +2,10 @@ import type { CopyTradingStrategy } from '../../strategies/copy-trading/index.ts
 import type { ArchiveConfig } from '../../strategies/copy-trading/types.ts'
 import type { ArchiveRepository } from './repository.ts'
 
+const DEFAULT_ARCHIVE_DAYS = 30
+const MAX_LIVE_COPIES = 200
+const ARCHIVE_INTERVAL_MS = 24 * 60 * 60 * 1000
+
 export class ArchiveService {
   private timer: ReturnType<typeof setInterval> | null = null
 
@@ -12,9 +16,10 @@ export class ArchiveService {
   ) {}
 
   start(): void {
+    if (this.timer != null) return   // already running
     this.archiveNow()
     // Run every 24 hours
-    this.timer = setInterval(() => this.archiveNow(), 24 * 60 * 60 * 1000)
+    this.timer = setInterval(() => this.archiveNow(), ARCHIVE_INTERVAL_MS)
   }
 
   stop(): void {
@@ -31,7 +36,7 @@ export class ArchiveService {
    */
   archiveNow(overrideDays?: number): number {
     const cfg = this.getConfig()
-    const days = overrideDays ?? cfg?.autoArchiveDays ?? 30
+    const days = overrideDays ?? cfg?.autoArchiveDays ?? DEFAULT_ARCHIVE_DAYS
 
     if (overrideDays == null && !cfg?.enabled) {
       console.log('[Archive] Auto-archive disabled, skipping')
@@ -39,7 +44,7 @@ export class ArchiveService {
     }
 
     const cutoff = Math.floor(Date.now() / 1000) - days * 86400
-    const copies = this.strategy.getRecentCopies(200)
+    const copies = this.strategy.getRecentCopies(MAX_LIVE_COPIES)
     const toArchive = copies.filter(c => c.timestamp < cutoff)
 
     if (toArchive.length === 0) {
@@ -47,9 +52,14 @@ export class ArchiveService {
       return 0
     }
 
-    this.repo.insertMany(toArchive)
-    this.strategy.removeCopies(toArchive.map(c => c.txHash))
-    console.log(`[Archive] Archived ${toArchive.length} records older than ${days} days`)
-    return toArchive.length
+    try {
+      this.repo.insertMany(toArchive)
+      this.strategy.removeCopies(toArchive.map(c => c.txHash))
+      console.log(`[Archive] Archived ${toArchive.length} records older than ${days} days`)
+      return toArchive.length
+    } catch (err) {
+      console.error('[Archive] Archive operation failed, live records preserved:', err)
+      return 0
+    }
   }
 }
