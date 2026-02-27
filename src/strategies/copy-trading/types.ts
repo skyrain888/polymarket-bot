@@ -28,6 +28,11 @@ export interface CopiedTrade {
   tradeToAccountPct: number      // originalSize / walletPortfolioValue * 100
 }
 
+export interface ArchiveConfig {
+  enabled: boolean         // enable daily auto-archiving
+  autoArchiveDays: number  // archive records older than N days
+}
+
 export interface CopyTradingConfig {
   enabled: boolean
   wallets: WalletConfig[]
@@ -35,4 +40,5 @@ export interface CopyTradingConfig {
   maxWalletExposureUsdc: number
   maxTotalExposureUsdc: number
   pollIntervalSeconds: number  // how often to poll for new trades (default 30)
+  archive?: ArchiveConfig
 }
