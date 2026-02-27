@@ -1,0 +1,23 @@
+src/infrastructure/logger.ts
+  246159bad4e2ed61 23-24,26-28,31-36,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "8d2a9eb00b63687406c164138751d754851f5041",
+  "prompts": {
+    "246159bad4e2ed61": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a1c341-33c3-4195-99e0-398bbb1b3a15",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 15,
+      "total_deletions": 11,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
