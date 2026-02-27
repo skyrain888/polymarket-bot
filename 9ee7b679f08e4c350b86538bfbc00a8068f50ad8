@@ -1,0 +1,23 @@
+docs/plans/2026-02-28-wallet-screener-plan.md
+  df5ffbbcc792822e 1-1001
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "9ee7b679f08e4c350b86538bfbc00a8068f50ad8",
+  "prompts": {
+    "df5ffbbcc792822e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "197e4e8c-2a36-49e9-922b-4b15806e6182",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 1001,
+      "total_deletions": 0,
+      "accepted_lines": 1001,
+      "overriden_lines": 0
+    }
+  }
+}
