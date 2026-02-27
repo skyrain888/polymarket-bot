@@ -53,12 +53,12 @@ CREATE TABLE IF NOT EXISTS account_snapshots (
 );
 
 CREATE TABLE IF NOT EXISTS copy_trades_archive (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  data        TEXT NOT NULL,
-  wallet      TEXT NOT NULL,
-  label       TEXT NOT NULL,
-  market_id   TEXT NOT NULL,
-  timestamp   INTEGER NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  data TEXT NOT NULL,
+  wallet TEXT NOT NULL,
+  label TEXT NOT NULL,
+  market_id TEXT NOT NULL,
+  traded_at INTEGER NOT NULL,
   archived_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `
