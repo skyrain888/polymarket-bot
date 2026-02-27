@@ -1,0 +1,23 @@
+src/infrastructure/archive/repository.ts
+  fa76a4d5d6c0479d 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "4adfecebca1e8448e171aa01ee9b04ed59f79036",
+  "prompts": {
+    "fa76a4d5d6c0479d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf658ebf-ec8b-4902-b942-620d16168685",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 50,
+      "total_deletions": 0,
+      "accepted_lines": 50,
+      "overriden_lines": 0
+    }
+  }
+}
