@@ -1,0 +1,23 @@
+start.sh
+  246159bad4e2ed61 9-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "14e92ddecd8e52eea6c09f9d0e2ccb6345683b39",
+  "prompts": {
+    "246159bad4e2ed61": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a1c341-33c3-4195-99e0-398bbb1b3a15",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 1,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
