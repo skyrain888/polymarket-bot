@@ -1,0 +1,23 @@
+src/infrastructure/dashboard/server.ts
+  fa76a4d5d6c0479d 392,410-442,444,509-510,659-676
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "4e14f5c5267cd51dcf45c3e1119283c56c3e6014",
+  "prompts": {
+    "fa76a4d5d6c0479d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf658ebf-ec8b-4902-b942-620d16168685",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 58,
+      "total_deletions": 4,
+      "accepted_lines": 58,
+      "overriden_lines": 0
+    }
+  }
+}
