@@ -1,0 +1,23 @@
+src/strategies/copy-trading/screener/data-fetcher.ts
+  df5ffbbcc792822e 1-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "905aa11ee881a3a5b755094a9cacef8fc42198e7",
+  "prompts": {
+    "df5ffbbcc792822e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "197e4e8c-2a36-49e9-922b-4b15806e6182",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 278,
+      "total_deletions": 1,
+      "accepted_lines": 277,
+      "overriden_lines": 0
+    }
+  }
+}
