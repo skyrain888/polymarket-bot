@@ -1,0 +1,25 @@
+src/strategies/copy-trading/screener/scoring-engine.ts
+  df5ffbbcc792822e 15,73-75,130-133
+src/infrastructure/dashboard/server.ts
+  df5ffbbcc792822e 244-247,250,264,285,287,955,1002,1004-1005,1007
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "f7bf61837be8cd97f5fe7d61dcc0cc10165db22b",
+  "prompts": {
+    "df5ffbbcc792822e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "197e4e8c-2a36-49e9-922b-4b15806e6182",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 21,
+      "total_deletions": 13,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
