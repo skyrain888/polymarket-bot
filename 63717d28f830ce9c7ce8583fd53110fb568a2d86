@@ -1,0 +1,27 @@
+src/strategies/copy-trading/index.test.ts
+  2351b9462b815207 1-75
+src/config/types.ts
+  2351b9462b815207 2
+src/strategies/copy-trading/index.ts
+  2351b9462b815207 1-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "63717d28f830ce9c7ce8583fd53110fb568a2d86",
+  "prompts": {
+    "2351b9462b815207": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed852246-2720-41e4-822c-496837069c9a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 191,
+      "total_deletions": 2,
+      "accepted_lines": 190,
+      "overriden_lines": 0
+    }
+  }
+}
