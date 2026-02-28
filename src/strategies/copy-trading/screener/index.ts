@@ -4,6 +4,7 @@ import type { ScreenerConfig, ScreenerState, ScreenerResult } from './types'
 import { DataFetcher } from './data-fetcher'
 import { ScoringEngine } from './scoring-engine'
 import { LLMAnalyzer } from './llm-analyzer'
+import { logger } from '../../../infrastructure/logger'
 
 const RESULTS_PATH = './data/screener-results.json'
 const SCHEDULE_INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -19,6 +20,7 @@ const DEFAULT_CONFIG: ScreenerConfig = {
   enabled: false,
   scheduleCron: 'disabled',
   lastRunAt: null,
+  closedPositionsLimit: 200,
 }
 
 export class ScreenerService {
@@ -38,7 +40,7 @@ export class ScreenerService {
   private config: ScreenerConfig = { ...DEFAULT_CONFIG }
 
   constructor(apiKey: string, model?: string, baseUrl?: string) {
-    this.fetcher = new DataFetcher()
+    this.fetcher = new DataFetcher(this.config.closedPositionsLimit)
     this.scorer = new ScoringEngine()
     this.analyzer = new LLMAnalyzer(apiKey, model, baseUrl)
     this.loadResults()
@@ -52,14 +54,23 @@ export class ScreenerService {
     return { ...this.config }
   }
 
+  private readonly TAG = 'Screener'
+
   updateLLM(apiKey: string, model?: string, baseUrl?: string): void {
     this.analyzer = new LLMAnalyzer(apiKey, model, baseUrl)
-    console.log(`[Screener] LLM analyzer updated (model: ${model ?? 'default'}, baseUrl: ${baseUrl ?? 'default'})`)
+    logger.info(this.TAG, `LLM analyzer updated (model=${model ?? 'default'}, baseUrl=${baseUrl ?? 'default'})`)
   }
 
   updateConfig(cfg: Partial<ScreenerConfig>): void {
+    const oldLimit = this.config.closedPositionsLimit
     this.config = { ...this.config, ...cfg }
     this.saveResults()
+
+    // Rebuild DataFetcher if closedPositionsLimit changed
+    if (this.config.closedPositionsLimit !== oldLimit) {
+      this.fetcher = new DataFetcher(this.config.closedPositionsLimit)
+      logger.info(this.TAG, `DataFetcher rebuilt with closedPositionsLimit=${this.config.closedPositionsLimit}`)
+    }
 
     // Restart scheduler if schedule setting changed
     this.stop()
@@ -72,10 +83,10 @@ export class ScreenerService {
     if (this.timer != null) return // double-start guard
     if (this.config.scheduleCron !== 'daily') return
 
-    console.log('[Screener] Starting daily schedule')
+    logger.info(this.TAG, 'Starting daily schedule')
     this.timer = setInterval(() => {
       this.run().catch((err) =>
-        console.error('[Screener] Scheduled run failed:', err),
+        logger.error(this.TAG, 'Scheduled run failed:', err instanceof Error ? err.message : String(err)),
       )
     }, SCHEDULE_INTERVAL_MS)
   }
@@ -84,17 +95,18 @@ export class ScreenerService {
     if (this.timer != null) {
       clearInterval(this.timer)
       this.timer = null
-      console.log('[Screener] Stopped schedule')
+      logger.info(this.TAG, 'Stopped schedule')
     }
   }
 
   async run(): Promise<ScreenerResult[]> {
-    // Guard: if already running, return current results
     if (this.state.status === 'running') {
-      console.log('[Screener] Already running, returning current results')
+      logger.warn(this.TAG, 'Already running, ignoring duplicate run request')
       return this.state.results
     }
 
+    const t0 = Date.now()
+    logger.info(this.TAG, '══════════════ Screener pipeline starting ══════════════')
     this.state.status = 'running'
     this.state.progress = 0
     this.state.progressLabel = 'Starting screener pipeline...'
@@ -104,33 +116,31 @@ export class ScreenerService {
       // Stage 1 (10%): Fetch leaderboard
       this.state.progress = 10
       this.state.progressLabel = 'Fetching leaderboard...'
-      console.log('[Screener] Stage 1: Fetching leaderboard')
+      logger.info(this.TAG, '[Stage 1/4] Fetching Polymarket leaderboard')
       const leaderboard = await this.fetcher.getLeaderboard()
-      console.log(`[Screener] Fetched ${leaderboard.length} leaderboard entries`)
+      logger.info(this.TAG, `[Stage 1/4] Done — ${leaderboard.length} entries fetched`)
 
       // Stage 2 (20→60%): Build profiles
       this.state.progress = 20
       this.state.progressLabel = 'Building trader profiles...'
-      console.log('[Screener] Stage 2: Building profiles')
+      logger.info(this.TAG, `[Stage 2/4] Building profiles for top ${leaderboard.length} traders`)
       const profiles = await this.fetcher.buildProfiles(leaderboard, 5)
       this.state.progress = 60
-      console.log(`[Screener] Built ${profiles.length} profiles`)
+      logger.info(this.TAG, `[Stage 2/4] Done — ${profiles.length} profiles built`)
 
       // Stage 3 (60%): Score and take top N
       this.state.progressLabel = 'Scoring traders...'
-      console.log('[Screener] Stage 3: Scoring traders')
+      logger.info(this.TAG, `[Stage 3/4] Scoring ${profiles.length} profiles`)
       const scored = this.scorer.score(profiles)
       const topN = scored.slice(0, TOP_N_FOR_LLM)
-      console.log(`[Screener] Scored ${scored.length} traders, top ${topN.length} selected for LLM analysis`)
+      logger.info(this.TAG, `[Stage 3/4] Done — top ${topN.length} selected (cutoff score=${topN[topN.length - 1]?.totalScore ?? 'N/A'})`)
 
       // Stage 4 (70%): LLM analysis
       this.state.progress = 70
       this.state.progressLabel = 'Running LLM analysis...'
-      console.log('[Screener] Stage 4: LLM analysis')
+      logger.info(this.TAG, `[Stage 4/4] LLM analysis for ${topN.length} traders`)
       const results = await this.analyzer.analyze(topN)
 
-      // Sort results: by recommendation level (recommended < cautious < not_recommended),
-      // then by totalScore descending
       results.sort((a, b) => {
         const levelDiff =
           (RECOMMENDATION_ORDER[a.recommendation.level] ?? 1) -
@@ -139,7 +149,6 @@ export class ScreenerService {
         return b.totalScore - a.totalScore
       })
 
-      // Done
       this.state.status = 'done'
       this.state.progress = 100
       this.state.progressLabel = 'Complete'
@@ -147,7 +156,10 @@ export class ScreenerService {
       this.config.lastRunAt = Math.floor(Date.now() / 1000)
 
       this.saveResults()
-      console.log(`[Screener] Pipeline complete: ${results.length} results`)
+
+      const recommended = results.filter(r => r.recommendation.level === 'recommended').length
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
+      logger.info(this.TAG, `══════ Pipeline complete in ${elapsed}s — ${results.length} results, ${recommended} recommended ══════`)
 
       return results
     } catch (err) {
@@ -155,7 +167,7 @@ export class ScreenerService {
       this.state.status = 'error'
       this.state.lastError = message
       this.state.progressLabel = 'Error'
-      console.error('[Screener] Pipeline failed:', err)
+      logger.error(this.TAG, 'Pipeline failed:', message)
       return this.state.results
     }
   }
@@ -176,11 +188,9 @@ export class ScreenerService {
       if (data.config) {
         this.config = { ...DEFAULT_CONFIG, ...data.config }
       }
-      console.log(
-        `[Screener] Loaded ${this.state.results.length} results from disk`,
-      )
+      logger.info(this.TAG, `Loaded ${this.state.results.length} cached results from disk`)
     } catch {
-      console.error('[Screener] Failed to load results from disk')
+      logger.error(this.TAG, 'Failed to load results from disk')
     }
   }
 
@@ -190,8 +200,9 @@ export class ScreenerService {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
       const data = { results: this.state.results, config: this.config }
       writeFileSync(RESULTS_PATH, JSON.stringify(data, null, 2), 'utf-8')
+      logger.debug(this.TAG, `Results saved to ${RESULTS_PATH}`)
     } catch (err) {
-      console.error('[Screener] Failed to save results to disk:', err)
+      logger.error(this.TAG, 'Failed to save results to disk:', err instanceof Error ? err.message : String(err))
     }
   }
 }

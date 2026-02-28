@@ -209,7 +209,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     return key.slice(0, 4) + '****' + key.slice(-4)
   }
 
-  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }, llmCfg: { provider: string; apiKey: string; model: string; baseUrl?: string; ollamaHost?: string }, hasScreener: boolean): string {
+  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null; closedPositionsLimit?: number }, llmCfg: { provider: string; apiKey: string; model: string; baseUrl?: string; ollamaHost?: string }, hasScreener: boolean): string {
     const lastRun = cfg.lastRunAt ? new Date(cfg.lastRunAt * 1000).toLocaleString() : '从未'
     const maskedKey = maskKey(llmCfg.apiKey)
     const hasKey = !!llmCfg.apiKey
@@ -270,6 +270,10 @@ export function createDashboard(deps: DashboardDeps, port: number) {
             <option value="disabled" ${cfg.scheduleCron === 'disabled' ? 'selected' : ''}>关闭</option>
             <option value="daily" ${cfg.scheduleCron === 'daily' ? 'selected' : ''}>每日</option>
           </select>
+          <label style="color:#888;font-size:0.9rem;margin-left:0.5rem">历史结算:</label>
+          <input name="closedPositionsLimit" type="number" value="${cfg.closedPositionsLimit ?? 200}" min="10" max="5000" step="10"
+            style="width:5rem;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.3rem;border-radius:4px;text-align:center;box-sizing:border-box">
+          <span style="color:#555;font-size:0.75rem">笔</span>
           <button type="submit" style="background:#3a3a4e;color:#e0e0e0;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer">保存</button>
           <span id="schedule-status"></span>
         </form>
@@ -316,12 +320,53 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       : l === 'cautious' ? '<span class="badge badge-warn">谨慎</span>'
       : '<span class="badge badge-err">不推荐</span>'
 
-    const cards = state.results.map((r: ScreenerResult, i: number) => `
+    const fmtUsd = (v: number) => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + v.toFixed(0)
+    const scoreBar = (v: number) => {
+      const color = v >= 80 ? '#2ecc71' : v >= 50 ? '#f39c12' : '#e74c3c'
+      return `<span style="color:${color};font-weight:bold">${Math.round(v)}</span>`
+    }
+
+    const fmtFlow = (v: number) => {
+      if (Math.abs(v) < 1) return '<span style="color:#888">—</span>'
+      const color = v > 0 ? '#2ecc71' : '#e74c3c'
+      const sign = v > 0 ? '+' : ''
+      return `<span style="color:${color}">${sign}${fmtUsd(v)}</span>`
+    }
+
+    const periodCol = (label: string, p: { tradeCount: number; buyCount: number; sellCount: number; volume: number; netFlow: number; winCount?: number; winPnl?: number; lossCount?: number; lossPnl?: number } | undefined) => {
+      if (!p) return `<td style="padding:0.3rem 0.5rem;color:#555;text-align:center">—</td>`
+      const hasWinLoss = p.winCount != null
+      let winLossHtml = ''
+      if (hasWinLoss) {
+        const totalClosed = (p.winCount ?? 0) + (p.lossCount ?? 0)
+        if (totalClosed === 0) {
+          winLossHtml = `<div style="font-size:0.75rem;color:#555">无已结算持仓</div>`
+        } else {
+          winLossHtml = `<div style="font-size:0.8rem"><span style="color:#2ecc71">赢${p.winCount}笔 +${fmtUsd(p.winPnl ?? 0)}</span> / <span style="color:#e74c3c">亏${p.lossCount}笔 -${fmtUsd(p.lossPnl ?? 0)}</span></div>`
+        }
+      }
+      return `<td style="padding:0.3rem 0.5rem;border-left:1px solid #1e1e2e;vertical-align:top">
+        <div style="font-size:0.75rem;color:#666;margin-bottom:2px">${label}</div>
+        <div style="font-size:0.85rem">${p.tradeCount}笔 <span style="color:#3498db;font-size:0.75rem">(买${p.buyCount}/卖${p.sellCount})</span></div>
+        <div style="font-size:0.8rem;color:#aaa">量: ${fmtUsd(p.volume)}</div>
+        <div style="font-size:0.8rem">净: ${fmtFlow(p.netFlow)}</div>
+        ${winLossHtml}
+      </td>`
+    }
+
+    const cards = state.results.map((r: ScreenerResult, i: number) => {
+      const polymarketUrl = `https://polymarket.com/profile/${r.address}`
+      const m = r.metrics
+      const recencyLabel = m
+        ? (m.daysSinceLastTrade === 0 ? '今天' : m.daysSinceLastTrade === 999 ? '未知' : m.daysSinceLastTrade + '天前')
+        : '-'
+
+      return `
       <div class="card" style="margin-bottom:0.75rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
           <div>
-            <span style="color:#7c83fd;font-weight:bold;font-size:1.1rem">#${i + 1} ${escHtml(r.username || r.address.slice(0, 10))}</span>
-            <span style="color:#888;font-size:0.8rem;margin-left:0.5rem">${r.address.slice(0, 6)}...${r.address.slice(-4)}</span>
+            <a href="${polymarketUrl}" target="_blank" rel="noopener" style="color:#7c83fd;font-weight:bold;font-size:1.1rem;text-decoration:none">#${i + 1} ${escHtml(r.username || r.address.slice(0, 10))} ↗</a>
+            <span style="color:#888;font-size:0.8rem;margin-left:0.5rem" title="${r.address}">${r.address.slice(0, 6)}...${r.address.slice(-4)}</span>
             <span style="margin-left:0.5rem">排名 #${r.rank}</span>
           </div>
           <div style="display:flex;gap:0.5rem;align-items:center">
@@ -329,34 +374,91 @@ export function createDashboard(deps: DashboardDeps, port: number) {
             <span style="background:#2a2a3e;padding:2px 8px;border-radius:4px;font-size:0.85rem">综合 ${r.totalScore}</span>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.75rem;font-size:0.85rem">
-          <div><span style="color:#888">PnL:</span> <span class="${r.pnl >= 0 ? 'positive' : 'negative'}">$${r.pnl.toFixed(0)}</span></div>
-          <div><span style="color:#888">成交量:</span> $${r.volume >= 1000 ? (r.volume / 1000).toFixed(1) + 'K' : r.volume.toFixed(0)}</div>
-          <div><span style="color:#888">持仓:</span> $${r.totalPortfolioValue >= 1000 ? (r.totalPortfolioValue / 1000).toFixed(1) + 'K' : r.totalPortfolioValue.toFixed(0)}</div>
-          <div style="display:flex;gap:0.3rem">
-            <span style="color:#2ecc71;font-size:0.75rem">收益${r.scores.returns}</span>
-            <span style="color:#3498db;font-size:0.75rem">活跃${r.scores.activity}</span>
-            <span style="color:#f39c12;font-size:0.75rem">规模${r.scores.portfolioSize}</span>
-            <span style="color:#9b59b6;font-size:0.75rem">分散${r.scores.diversification}</span>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.5rem;font-size:0.85rem">
+          <div><span style="color:#888">PnL:</span> <span class="${r.pnl >= 0 ? 'positive' : 'negative'}">${fmtUsd(r.pnl)}</span></div>
+          <div><span style="color:#888">成交量:</span> ${fmtUsd(r.volume)}</div>
+          <div><span style="color:#888">持仓:</span> ${fmtUsd(r.totalPortfolioValue)}</div>
+          <div><span style="color:#888">近期:</span> ${m ? m.tradeCount + '笔 / 均' + fmtUsd(m.avgTradeSize) : '-'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.75rem;font-size:0.82rem;background:#0d0d1a;border-radius:4px;padding:0.4rem 0.5rem">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="color:#888;font-size:0.75rem">收益评分 (35%)</span>
+            ${scoreBar(r.scores.returns)}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="color:#888;font-size:0.75rem">活跃评分 (25%)</span>
+            ${scoreBar(r.scores.activity)}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="color:#888;font-size:0.75rem">规模评分 (20%)</span>
+            ${scoreBar(r.scores.portfolioSize)}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="color:#888;font-size:0.75rem">分散评分 (20%)</span>
+            ${scoreBar(r.scores.diversification)}
           </div>
         </div>
+        ${m ? '' : `<div style="margin-bottom:0.75rem;padding:0.4rem 0.6rem;background:#0d0d1a;border-radius:4px;font-size:0.78rem;color:#555">时间段数据需重新运行筛选后显示 →
+          <button hx-post="/screener/run" hx-target="#screener-content" hx-swap="innerHTML"
+            style="background:none;border:1px solid #333;color:#7c83fd;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:0.78rem;margin-left:0.4rem">重新筛选</button>
+        </div>`}
+        ${m ? `
+        <div style="margin-bottom:0.75rem;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead>
+              <tr style="background:#0d0d1a">
+                <td style="padding:0.3rem 0.5rem;color:#555;font-size:0.75rem">时间段</td>
+                <td style="padding:0.3rem 0.5rem;border-left:1px solid #1e1e2e;color:#555;font-size:0.75rem">24小时</td>
+                <td style="padding:0.3rem 0.5rem;border-left:1px solid #1e1e2e;color:#555;font-size:0.75rem">7天</td>
+                <td style="padding:0.3rem 0.5rem;border-left:1px solid #1e1e2e;color:#555;font-size:0.75rem">30天</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-top:1px solid #1e1e2e">
+                <td></td>
+                ${periodCol('', m.periods.day)}
+                ${periodCol('', m.periods.week)}
+                ${periodCol('', m.periods.month)}
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:0.75rem;color:#555;margin-top:4px;display:flex;gap:1.5rem;flex-wrap:wrap">
+            <span><span style="color:#2ecc71">净&gt;0</span> 卖出多 → 获利了结 &nbsp;|&nbsp; <span style="color:#e74c3c">净&lt;0</span> 买入多 → 持续建仓（利于跟单）</span>
+            <span style="color:#444">持仓市场 ${m.uniqueMarkets} 个 · 最近交易 ${recencyLabel}</span>
+          </div>
+          ${m.closedPositionSummary && m.closedPositionSummary.total > 0 ? `<div style="font-size:0.8rem;margin-top:6px;padding:6px 8px;background:#0d0d1a;border-radius:4px;display:flex;gap:1.5rem;flex-wrap:wrap;align-items:center">
+            <span style="color:#7c83fd;font-weight:bold">历史结算</span>
+            <span>共 ${m.closedPositionSummary.total} 笔</span>
+            <span>胜率 <span style="color:${m.closedPositionSummary.winRate >= 0.6 ? '#2ecc71' : m.closedPositionSummary.winRate >= 0.4 ? '#f39c12' : '#e74c3c'}">${(m.closedPositionSummary.winRate * 100).toFixed(1)}%</span></span>
+            <span>赢 <span style="color:#2ecc71">${m.closedPositionSummary.wins}笔</span> / 亏 <span style="color:#e74c3c">${m.closedPositionSummary.losses}笔</span></span>
+            <span>总盈亏 <span style="color:${m.closedPositionSummary.totalPnl >= 0 ? '#2ecc71' : '#e74c3c'}">${m.closedPositionSummary.totalPnl >= 0 ? '+' : ''}${fmtUsd(m.closedPositionSummary.totalPnl)}</span></span>
+            <span style="color:#666">均盈亏 ${m.closedPositionSummary.avgPnlPerTrade >= 0 ? '+' : ''}${fmtUsd(m.closedPositionSummary.avgPnlPerTrade)}/笔</span>
+          </div>` : ''}
+        </div>` : ''}
         <div style="background:#12121e;border-radius:6px;padding:0.75rem;margin-bottom:0.75rem">
           <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">跟单理由:</strong> ${escHtml(r.recommendation.reasoning)}</div>
           <div style="font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#7c83fd">推荐策略:</strong> ${r.recommendation.suggestedSizeMode === 'fixed' ? '固定金额 $' + r.recommendation.suggestedAmount : '比例 ' + (r.recommendation.suggestedAmount * 100).toFixed(0) + '%'} | 单市场上限: ${r.recommendation.suggestedMaxCopiesPerMarket}次</div>
           <div style="font-size:0.85rem;color:#e74c3c">风险提示: ${escHtml(r.recommendation.riskWarning)}</div>
         </div>
-        <div style="text-align:right" id="add-wallet-${i}">
-          <form hx-post="/screener/add-wallet" hx-target="#add-wallet-${i}" hx-swap="innerHTML" style="display:inline">
-            <input type="hidden" name="address" value="${r.address}">
-            <input type="hidden" name="label" value="${r.username || r.address.slice(0, 10)}">
-            <input type="hidden" name="sizeMode" value="${r.recommendation.suggestedSizeMode}">
-            <input type="hidden" name="amount" value="${r.recommendation.suggestedAmount}">
-            <input type="hidden" name="maxCopiesPerMarket" value="${r.recommendation.suggestedMaxCopiesPerMarket}">
-            <button type="submit" style="background:#1e4d2b;color:#2ecc71;border:1px solid #2ecc71;padding:0.4rem 1rem;border-radius:4px;cursor:pointer">+ 添加到跟单</button>
-          </form>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div id="screener-detail-toggle-${r.address}">
+            ${r.detail ? `<button hx-get="/screener/detail/${r.address}" hx-target="#screener-detail-${r.address}" hx-swap="innerHTML"
+              style="background:none;border:1px solid #333;color:#888;padding:0.3rem 0.75rem;border-radius:4px;cursor:pointer;font-size:0.8rem">📊 查看过程数据</button>` : ''}
+          </div>
+          <div id="add-wallet-${i}">
+            <form hx-post="/screener/add-wallet" hx-target="#add-wallet-${i}" hx-swap="innerHTML" style="display:inline">
+              <input type="hidden" name="address" value="${r.address}">
+              <input type="hidden" name="label" value="${r.username || r.address.slice(0, 10)}">
+              <input type="hidden" name="sizeMode" value="${r.recommendation.suggestedSizeMode}">
+              <input type="hidden" name="amount" value="${r.recommendation.suggestedAmount}">
+              <input type="hidden" name="maxCopiesPerMarket" value="${r.recommendation.suggestedMaxCopiesPerMarket}">
+              <button type="submit" style="background:#1e4d2b;color:#2ecc71;border:1px solid #2ecc71;padding:0.4rem 1rem;border-radius:4px;cursor:pointer">+ 添加到跟单</button>
+            </form>
+          </div>
         </div>
+        <div id="screener-detail-${r.address}"></div>
       </div>
-    `).join('')
+    `}).join('')
 
     const recommendedCount = state.results.filter((r: ScreenerResult) => r.recommendation.level === 'recommended').length
     const screenedAt = state.results[0]?.screenedAt
@@ -367,6 +469,92 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       <span style="font-size:0.9rem;color:#888">共 ${state.results.length} 个钱包 | ${recommendedCount} 个推荐 | 筛选时间: ${timeStr}</span>
     </div>
     ${cards}`
+  }
+
+  function screenerDetailHtml(r: ScreenerResult): string {
+    const d = r.detail!
+    const fmtTs = (ts: number) => new Date(ts * 1000).toLocaleString()
+    const fmtDate = (ts: number) => new Date(ts * 1000).toLocaleDateString()
+    const fmtUsdD = (v: number) => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + v.toFixed(0)
+
+    // ── Positions ──
+    const posRows = d.positions.length === 0
+      ? '<tr><td colspan="4" style="color:#555;padding:0.5rem;text-align:center">暂无持仓</td></tr>'
+      : [...d.positions]
+          .sort((a, b) => b.currentValue - a.currentValue)
+          .map(p => `<tr style="border-top:1px solid #1e1e2e">
+            <td style="padding:0.3rem 0.5rem;font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.title)}">${escHtml(p.title)}</td>
+            <td style="padding:0.3rem 0.5rem;font-size:0.8rem">${escHtml(p.outcome)}</td>
+            <td style="padding:0.3rem 0.5rem;font-size:0.8rem;text-align:right">${fmtUsdD(p.size)}</td>
+            <td style="padding:0.3rem 0.5rem;font-size:0.8rem;text-align:right">${fmtUsdD(p.currentValue)}</td>
+          </tr>`).join('')
+
+    // ── Trades ──
+    const sortedTrades = [...d.trades].sort((a, b) => b.timestamp - a.timestamp)
+    const tradeRows = sortedTrades.length === 0
+      ? '<tr><td colspan="5" style="color:#555;padding:0.5rem;text-align:center">无交易记录</td></tr>'
+      : sortedTrades.map(t => {
+          const sideColor = t.side === 'buy' ? '#3498db' : '#e67e22'
+          return `<tr style="border-top:1px solid #1e1e2e">
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;color:#888">${fmtDate(t.timestamp)}</td>
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(t.title)}">${escHtml(t.title)}</td>
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;color:#aaa">${escHtml(t.outcome)}</td>
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;color:${sideColor};font-weight:bold">${t.side.toUpperCase()}</td>
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;text-align:right">${fmtUsdD(t.size)}</td>
+            <td style="padding:0.25rem 0.5rem;font-size:0.78rem;text-align:right;color:#888">${(t.price * 100).toFixed(1)}%</td>
+          </tr>`
+        }).join('')
+
+    return `
+    <div style="border-top:1px solid #1e1e2e;margin-top:0.75rem;padding-top:0.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+        <span style="font-size:0.85rem;font-weight:bold;color:#7c83fd">过程数据 · 筛选时 ${fmtTs(r.screenedAt)}</span>
+        <button hx-get="/screener/detail/${r.address}/close" hx-target="#screener-detail-${r.address}" hx-swap="innerHTML"
+          style="background:none;border:1px solid #333;color:#888;padding:0.2rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.78rem">收起 ▲</button>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.8rem;color:#888;margin-bottom:0.4rem">当前持仓（${d.positions.length} 个）</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead><tr style="background:#0d0d1a;color:#666;font-size:0.75rem">
+              <th style="padding:0.3rem 0.5rem;text-align:left;font-weight:normal">市场</th>
+              <th style="padding:0.3rem 0.5rem;text-align:left;font-weight:normal">方向</th>
+              <th style="padding:0.3rem 0.5rem;text-align:right;font-weight:normal">规模</th>
+              <th style="padding:0.3rem 0.5rem;text-align:right;font-weight:normal">当前价值</th>
+            </tr></thead>
+            <tbody>${posRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.8rem;color:#888;margin-bottom:0.4rem">30天交易记录（${d.trades.length} 笔，按时间倒序）</div>
+        <div style="max-height:280px;overflow-y:auto;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead><tr style="background:#0d0d1a;color:#666;font-size:0.75rem;position:sticky;top:0">
+              <th style="padding:0.25rem 0.5rem;text-align:left;font-weight:normal">日期</th>
+              <th style="padding:0.25rem 0.5rem;text-align:left;font-weight:normal">市场</th>
+              <th style="padding:0.25rem 0.5rem;text-align:left;font-weight:normal">结果</th>
+              <th style="padding:0.25rem 0.5rem;font-weight:normal">方向</th>
+              <th style="padding:0.25rem 0.5rem;text-align:right;font-weight:normal">金额</th>
+              <th style="padding:0.25rem 0.5rem;text-align:right;font-weight:normal">价格</th>
+            </tr></thead>
+            <tbody>${tradeRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <details style="margin-bottom:0.5rem">
+        <summary style="cursor:pointer;font-size:0.8rem;color:#666;padding:0.3rem 0;user-select:none">LLM 输入数据 ▸</summary>
+        <pre style="background:#0a0a16;border-radius:4px;padding:0.75rem;font-size:0.72rem;color:#aaa;overflow-x:auto;margin-top:0.4rem;max-height:300px;overflow-y:auto">${escHtml(d.llmInput)}</pre>
+      </details>
+
+      <details>
+        <summary style="cursor:pointer;font-size:0.8rem;color:#666;padding:0.3rem 0;user-select:none">LLM 原始响应 ▸</summary>
+        <pre style="background:#0a0a16;border-radius:4px;padding:0.75rem;font-size:0.72rem;color:#aaa;overflow-x:auto;margin-top:0.4rem;max-height:200px;overflow-y:auto">${escHtml(d.llmRaw)}</pre>
+      </details>
+    </div>`
   }
 
   // Filter parameters for trades card
@@ -1004,7 +1192,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
   app.get('/screener', (c) => {
     const screener = deps.screenerService
     const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
-    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
+    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null, closedPositionsLimit: 200 }
     const llmCfg = { provider: deps.config.llm.provider || 'claude', apiKey: deps.config.llm.apiKey || '', model: deps.config.llm.model || '', baseUrl: deps.config.llm.baseUrl, ollamaHost: deps.config.llm.ollamaHost }
     return c.html(layout('智能筛选', screenerPageHtml(state, cfg, llmCfg, !!screener)))
   })
@@ -1052,7 +1240,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     // Return full updated page
     const screener = deps.screenerService
     const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
-    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
+    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null, closedPositionsLimit: 200 }
     const llmCfg = { provider: deps.config.llm.provider || 'claude', apiKey: deps.config.llm.apiKey || '', model: deps.config.llm.model || '', baseUrl: deps.config.llm.baseUrl, ollamaHost: deps.config.llm.ollamaHost }
     return c.html(screenerPageHtml(state, cfg, llmCfg, !!screener))
   })
@@ -1077,6 +1265,21 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     const screener = deps.screenerService
     const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
     return c.html(screenerResultsHtml(state))
+  })
+
+  app.get('/screener/detail/:address', (c) => {
+    const address = c.req.param('address')
+    const screener = deps.screenerService
+    const state = screener?.getState()
+    const result = state?.results.find(r => r.address === address)
+    if (!result?.detail) return c.html('<span style="color:#555;font-size:0.8rem">暂无过程数据（请重新运行筛选）</span>')
+    return c.html(screenerDetailHtml(result))
+  })
+
+  app.get('/screener/detail/:address/close', (c) => {
+    const address = c.req.param('address')
+    return c.html(`<button hx-get="/screener/detail/${address}" hx-target="#screener-detail-${address}" hx-swap="innerHTML"
+      style="background:none;border:1px solid #333;color:#888;padding:0.3rem 0.75rem;border-radius:4px;cursor:pointer;font-size:0.8rem">📊 查看过程数据</button>`)
   })
 
   app.post('/screener/add-wallet', async (c) => {
@@ -1108,11 +1311,13 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     const body = await c.req.parseBody()
     const schedule = String(body.schedule ?? 'disabled')
     const validSchedule = schedule === 'daily' ? 'daily' as const : 'disabled' as const
+    const closedPositionsLimit = Math.max(10, Math.min(5000, Number(body.closedPositionsLimit ?? 200)))
     deps.screenerService?.updateConfig({
       enabled: validSchedule === 'daily',
       scheduleCron: validSchedule,
+      closedPositionsLimit,
     })
-    return c.html(`<span class="badge badge-ok">${validSchedule === 'daily' ? '已开启每日筛选' : '已关闭定时筛选'}</span>`)
+    return c.html(`<span class="badge badge-ok">${validSchedule === 'daily' ? '已开启每日筛选' : '已关闭定时筛选'} · 历史结算${closedPositionsLimit}笔</span>`)
   })
 
   // SSE endpoint for real-time updates

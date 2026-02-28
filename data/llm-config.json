@@ -1,0 +1,6 @@
+{
+  "provider": "gemini",
+  "apiKey": "sk-d17517efd7c24c3daf91e3b8efdb4a1a",
+  "model": "gpt-4-think",
+  "baseUrl": "http://127.0.0.1:8045"
+}

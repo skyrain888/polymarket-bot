@@ -4,6 +4,7 @@ import type {
   DimensionScores,
   ScoredTrader,
 } from './types'
+import { logger } from '../../../infrastructure/logger'
 
 const WEIGHTS = {
   returns: 0.35,
@@ -13,29 +14,45 @@ const WEIGHTS = {
 } as const
 
 const SECONDS_PER_DAY = 86_400
+const TAG = 'ScoringEngine'
 
 export class ScoringEngine {
   score(profiles: TraderProfile[]): ScoredTrader[] {
-    return profiles
+    logger.info(TAG, `Scoring ${profiles.length} trader profiles`)
+    const scored = profiles
       .map((profile) => this.scoreTrader(profile))
       .sort((a, b) => b.totalScore - a.totalScore)
+
+    logger.debug(TAG, `Top 5 scores: ${scored.slice(0, 5).map(s => `${s.profile.entry.username || s.profile.entry.address.slice(0, 8)}=${s.totalScore}`).join(', ')}`)
+    return scored
   }
 
   private scoreTrader(profile: TraderProfile): ScoredTrader {
     const scores: DimensionScores = {
       returns: this.scoreReturns(profile),
-      activity: this.scoreActivity(profile.recentTrades),
+      activity: this.scoreActivity(profile),
       portfolioSize: this.scorePortfolioSize(profile),
       diversification: this.scoreDiversification(profile),
     }
 
-    const totalScore =
+    let totalScore =
       scores.returns * WEIGHTS.returns +
       scores.activity * WEIGHTS.activity +
       scores.portfolioSize * WEIGHTS.portfolioSize +
       scores.diversification * WEIGHTS.diversification
 
-    return { profile, scores, totalScore: Math.round(totalScore * 100) / 100 }
+    // Penalty: no closed positions = no proven track record
+    const closed = profile.closedPositions ?? []
+    if (closed.length === 0) {
+      totalScore *= 0.6
+      logger.debug(TAG, `${profile.entry.username || profile.entry.address.slice(0, 10)}: no closed positions → 40% penalty applied`)
+    }
+
+    const rounded = Math.round(totalScore * 100) / 100
+
+    logger.debug(TAG, `${profile.entry.username || profile.entry.address.slice(0, 10)}: returns=${scores.returns.toFixed(1)} activity=${scores.activity.toFixed(1)} portfolioSize=${scores.portfolioSize.toFixed(1)} diversification=${scores.diversification.toFixed(1)} → total=${rounded}${closed.length === 0 ? ' (penalized)' : ''}`)
+
+    return { profile, scores, totalScore: rounded }
   }
 
   // ---------- Returns (0-100) ----------
@@ -44,15 +61,22 @@ export class ScoringEngine {
     const pnl = profile.entry.pnl
     const pnlScore = pnl > 0 ? Math.min(50, Math.log10(pnl + 1) * 12) : 0
 
-    const winRateScore = this.computeWinRateScore(profile.recentTrades)
+    const winRateScore = this.computeWinRateScore(profile)
 
     return Math.min(100, pnlScore + winRateScore)
   }
 
-  private computeWinRateScore(trades: TraderTrade[]): number {
-    const buys = trades.filter((t) => t.side === 'buy')
+  private computeWinRateScore(profile: TraderProfile): number {
+    const closed = profile.closedPositions ?? []
+    // Use closed positions win rate if we have enough data
+    if (closed.length >= 5) {
+      const wins = closed.filter((p) => p.realizedPnl > 0).length
+      const winRate = wins / closed.length
+      return winRate * 50
+    }
+    // Fallback to buy price heuristic if insufficient closed positions
+    const buys = profile.recentTrades.filter((t) => t.side === 'buy')
     if (buys.length < 5) return 25
-
     const goodBuys = buys.filter((t) => t.price < 0.65).length
     const winRate = goodBuys / buys.length
     return winRate * 50
@@ -60,11 +84,20 @@ export class ScoringEngine {
 
   // ---------- Activity (0-100) ----------
 
-  private scoreActivity(trades: TraderTrade[]): number {
+  private scoreActivity(profile: TraderProfile): number {
+    const trades = profile.recentTrades
     const tradeCountScore = Math.min(50, trades.length * 2)
     const recencyScore = this.computeRecencyScore(trades)
 
-    return Math.min(100, tradeCountScore + recencyScore)
+    let score = Math.min(100, tradeCountScore + recencyScore)
+
+    // Discount if all trades are buys (no exits = no proven cycle)
+    const sells = trades.filter((t) => t.side === 'sell').length
+    if (trades.length > 0 && sells === 0) {
+      score *= 0.6
+    }
+
+    return score
   }
 
   private computeRecencyScore(trades: TraderTrade[]): number {
@@ -112,15 +145,12 @@ export class ScoringEngine {
     const positions = profile.positions
     if (positions.length === 0) return 0
 
-    // Market count score: unique markets by conditionId
     const uniqueMarkets = new Set(positions.map((p) => p.conditionId)).size
     const marketCountScore = Math.min(50, uniqueMarkets * 8)
 
-    // Concentration score
     const totalValue = profile.totalPortfolioValue
     if (totalValue <= 0) return marketCountScore
 
-    // Aggregate value per market
     const marketValues = new Map<string, number>()
     for (const pos of positions) {
       const current = marketValues.get(pos.conditionId) ?? 0

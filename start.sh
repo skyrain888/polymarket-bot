@@ -5,6 +5,8 @@ echo "[transBoot] Starting service..."
 echo "[transBoot] Logs: tail -f data/bot.log"
 
 export NODE_TLS_REJECT_UNAUTHORIZED=0
+# Log level: debug (verbose) | info (default) | warn | error
+export LOG_LEVEL="${LOG_LEVEL:-info}"
 
 if [ "$1" = "-w" ]; then
   echo "[transBoot] Watch mode (auto-restart on file change)"

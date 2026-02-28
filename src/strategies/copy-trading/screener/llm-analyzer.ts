@@ -2,8 +2,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import type {
   ScoredTrader,
   ScreenerResult,
+  ScreenerResultDetail,
   LLMRecommendation,
+  TraderMetrics,
+  TraderProfile,
+  PeriodStats,
+  ClosedPosition,
+  ClosedPositionSummary,
 } from './types'
+import { logger } from '../../../infrastructure/logger'
 
 const BATCH_SIZE = 5
 
@@ -26,21 +33,30 @@ export class LLMAnalyzer {
     this.model = model
   }
 
+  private readonly TAG = 'LLMAnalyzer'
+
   async analyze(traders: ScoredTrader[]): Promise<ScreenerResult[]> {
+    logger.info(this.TAG, `Starting LLM analysis for ${traders.length} traders (batch size=${BATCH_SIZE}, model=${this.model})`)
     const results: ScreenerResult[] = []
+    const totalBatches = Math.ceil(traders.length / BATCH_SIZE)
 
     for (let i = 0; i < traders.length; i += BATCH_SIZE) {
       const batch = traders.slice(i, i + BATCH_SIZE)
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      logger.info(this.TAG, `LLM batch ${batchNum}/${totalBatches}: analyzing ${batch.map(t => t.profile.entry.username || t.profile.entry.address.slice(0, 8)).join(', ')}`)
       const batchResults = await this.analyzeBatch(batch)
       results.push(...batchResults)
+      logger.info(this.TAG, `LLM batch ${batchNum}/${totalBatches} done`)
     }
 
+    logger.info(this.TAG, `LLM analysis complete: ${results.length} results`)
     return results
   }
 
   private async analyzeBatch(batch: ScoredTrader[]): Promise<ScreenerResult[]> {
-    const tradersText = batch
-      .map((t, idx) => `--- Trader ${idx + 1} ---\n${this.formatTraderData(t)}`)
+    const llmInputs = batch.map((t) => this.formatTraderData(t))
+    const tradersText = llmInputs
+      .map((text, idx) => `--- Trader ${idx + 1} ---\n${text}`)
       .join('\n\n')
 
     const prompt = `你是一个专业的加密货币交易分析师。请分析以下 Polymarket 交易者的数据，并为每位交易者提供跟单建议。
@@ -71,6 +87,9 @@ ${tradersText}
   }
 ]`
 
+    logger.debug(this.TAG, `Sending request to LLM (${this.model}), prompt length=${prompt.length} chars`)
+    const t0 = Date.now()
+
     try {
       const response = await this.client.messages.create({
         model: this.model,
@@ -78,16 +97,21 @@ ${tradersText}
         messages: [{ role: 'user', content: prompt }],
       })
 
+      const elapsed = Date.now() - t0
       const text = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === 'text')
         .map((block) => block.text)
         .join('')
 
+      logger.debug(this.TAG, `LLM responded in ${elapsed}ms, response length=${text.length} chars`)
+
       const parsed = this.parseResponse(text)
-      return this.mapToResults(batch, parsed)
+      logger.info(this.TAG, `Parsed ${parsed.length}/${batch.length} recommendations from LLM response`)
+      return this.mapToResults(batch, parsed, llmInputs, text)
     } catch (error) {
-      console.error('[LLMAnalyzer] API call failed, using fallback:', error)
-      return batch.map((t) => this.buildFallbackResult(t))
+      const elapsed = Date.now() - t0
+      logger.error(this.TAG, `API call failed after ${elapsed}ms, using fallback:`, error instanceof Error ? error.message : String(error))
+      return batch.map((t, idx) => this.buildFallbackResult(t, llmInputs[idx] ?? ''))
     }
   }
 
@@ -95,30 +119,44 @@ ${tradersText}
     // Try to extract JSON array — handle both raw JSON and markdown code blocks
     const arrayMatch = text.match(/\[[\s\S]*\]/)
     if (!arrayMatch) {
-      console.warn('[LLMAnalyzer] Could not extract JSON array from response')
+      logger.warn(this.TAG, 'Could not extract JSON array from response, raw text preview:', text.slice(0, 200))
       return []
     }
 
     try {
       const items: LLMResponseItem[] = JSON.parse(arrayMatch[0])
+      logger.debug(this.TAG, `JSON parse succeeded: ${items.length} items`)
       return items
     } catch (e) {
-      console.warn('[LLMAnalyzer] Failed to parse JSON response:', e)
+      logger.warn(this.TAG, 'Failed to parse JSON response:', e instanceof Error ? e.message : String(e))
       return []
+    }
+  }
+
+  private buildDetail(trader: ScoredTrader, llmInput: string, llmRaw: string): ScreenerResultDetail {
+    return {
+      positions: trader.profile.positions,
+      trades: trader.profile.recentTrades,
+      llmInput,
+      llmRaw,
     }
   }
 
   private mapToResults(
     batch: ScoredTrader[],
     parsed: LLMResponseItem[],
+    llmInputs: string[],
+    llmResponseText: string,
   ): ScreenerResult[] {
     const now = Math.floor(Date.now() / 1000)
     const parsedMap = new Map(parsed.map((item) => [item.address, item]))
 
-    return batch.map((trader) => {
+    return batch.map((trader, idx) => {
       const item = parsedMap.get(trader.profile.entry.address)
+      const llmInput = llmInputs[idx] ?? ''
 
       if (item) {
+        logger.debug(this.TAG, `Mapped result for ${trader.profile.entry.username || trader.profile.entry.address.slice(0, 10)}: level=${item.level}`)
         const recommendation: LLMRecommendation = {
           level: item.level,
           reasoning: item.reasoning,
@@ -138,16 +176,19 @@ ${tradersText}
           totalPortfolioValue: trader.profile.totalPortfolioValue,
           scores: trader.scores,
           totalScore: trader.totalScore,
+          metrics: this.computeMetrics(trader.profile),
           recommendation,
+          detail: this.buildDetail(trader, llmInput, JSON.stringify(item, null, 2)),
           screenedAt: now,
         }
       }
 
-      return this.buildFallbackResult(trader)
+      logger.warn(this.TAG, `No LLM result for ${trader.profile.entry.username || trader.profile.entry.address.slice(0, 10)}, using fallback`)
+      return this.buildFallbackResult(trader, llmInput, llmResponseText)
     })
   }
 
-  private buildFallbackResult(trader: ScoredTrader): ScreenerResult {
+  private buildFallbackResult(trader: ScoredTrader, llmInput = '', llmResponseText = ''): ScreenerResult {
     const now = Math.floor(Date.now() / 1000)
     const isLargePortfolio = trader.profile.totalPortfolioValue > 10_000
 
@@ -170,8 +211,85 @@ ${tradersText}
       totalPortfolioValue: trader.profile.totalPortfolioValue,
       scores: trader.scores,
       totalScore: trader.totalScore,
+      metrics: this.computeMetrics(trader.profile),
       recommendation,
+      detail: this.buildDetail(trader, llmInput, llmResponseText),
       screenedAt: now,
+    }
+  }
+
+  private computePeriodStats(trades: TraderProfile['recentTrades'], closedPositions: ClosedPosition[], cutoffSeconds: number): PeriodStats {
+    const inPeriod = trades.filter((t) => t.timestamp >= cutoffSeconds)
+    let buyCount = 0, sellCount = 0, buyVolume = 0, sellVolume = 0
+    for (const t of inPeriod) {
+      if (t.side === 'buy') { buyCount++; buyVolume += t.size }
+      else { sellCount++; sellVolume += t.size }
+    }
+
+    // Win/loss from closed (settled) positions in this period
+    const closedInPeriod = closedPositions.filter((p) => p.timestamp >= cutoffSeconds)
+    let winCount = 0, winPnl = 0, lossCount = 0, lossPnl = 0
+    for (const p of closedInPeriod) {
+      if (p.realizedPnl > 0) { winCount++; winPnl += p.realizedPnl }
+      else { lossCount++; lossPnl += Math.abs(p.realizedPnl) }
+    }
+
+    return {
+      tradeCount: inPeriod.length,
+      buyCount,
+      sellCount,
+      volume: buyVolume + sellVolume,
+      netFlow: sellVolume - buyVolume,
+      winCount,
+      winPnl,
+      lossCount,
+      lossPnl,
+    }
+  }
+
+  private computeMetrics(profile: TraderProfile): TraderMetrics {
+    const trades = profile.recentTrades
+    const closed = profile.closedPositions ?? []
+    const tradeCount = trades.length
+    const uniqueMarkets = new Set(profile.positions.map((p) => p.conditionId)).size
+    const avgTradeSize =
+      trades.length > 0
+        ? trades.reduce((sum, t) => sum + t.size, 0) / trades.length
+        : 0
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const mostRecent =
+      trades.length > 0
+        ? trades.reduce((max, t) => (t.timestamp > max ? t.timestamp : max), 0)
+        : 0
+    const daysSinceLastTrade =
+      mostRecent > 0 ? Math.floor((nowSeconds - mostRecent) / 86_400) : 999
+
+    const periods = {
+      day:   this.computePeriodStats(trades, closed, nowSeconds - 86_400),
+      week:  this.computePeriodStats(trades, closed, nowSeconds - 7 * 86_400),
+      month: this.computePeriodStats(trades, closed, nowSeconds - 30 * 86_400),
+    }
+
+    const closedPositionSummary = this.computeClosedPositionSummary(closed)
+
+    return { tradeCount, uniqueMarkets, avgTradeSize, daysSinceLastTrade, periods, closedPositionSummary }
+  }
+
+  private computeClosedPositionSummary(closed: ClosedPosition[]): ClosedPositionSummary {
+    const total = closed.length
+    let wins = 0, losses = 0, totalPnl = 0
+    for (const p of closed) {
+      totalPnl += p.realizedPnl
+      if (p.realizedPnl > 0) wins++
+      else losses++
+    }
+    return {
+      total,
+      wins,
+      losses,
+      totalPnl,
+      winRate: total > 0 ? wins / total : 0,
+      avgPnlPerTrade: total > 0 ? totalPnl / total : 0,
     }
   }
 
@@ -214,6 +332,28 @@ ${tradersText}
         const date = new Date(trade.timestamp * 1000).toISOString().slice(0, 10)
         lines.push(
           `  - [${date}] ${trade.side.toUpperCase()} ${trade.title} [${trade.outcome}] size=$${trade.size.toFixed(2)} @${trade.price.toFixed(3)}`,
+        )
+      }
+    }
+
+    // Closed positions summary (settled markets)
+    const closed = profile.closedPositions ?? []
+    if (closed.length > 0) {
+      const summary = this.computeClosedPositionSummary(closed)
+      lines.push(
+        '',
+        'Closed Positions (Settled Markets):',
+        `  Total: ${summary.total} (Win: ${summary.wins}, Loss: ${summary.losses})`,
+        `  Win Rate: ${(summary.winRate * 100).toFixed(1)}%`,
+        `  Total Realized PnL: $${summary.totalPnl.toFixed(2)}`,
+        `  Avg PnL per Position: $${summary.avgPnlPerTrade.toFixed(2)}`,
+      )
+      // Top 5 closed positions by absolute PnL
+      const topClosed = [...closed].sort((a, b) => Math.abs(b.realizedPnl) - Math.abs(a.realizedPnl)).slice(0, 5)
+      for (const cp of topClosed) {
+        const pnlSign = cp.realizedPnl >= 0 ? '+' : ''
+        lines.push(
+          `  - ${cp.title} [${cp.outcome}] avgPrice=${cp.avgPrice.toFixed(3)} pnl=${pnlSign}$${cp.realizedPnl.toFixed(2)}`,
         )
       }
     }
