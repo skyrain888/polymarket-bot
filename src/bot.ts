@@ -18,18 +18,26 @@ import { CopyTradingStrategy } from './strategies/copy-trading/index.ts'
 import { Notifier } from './infrastructure/notifier/index.ts'
 import { createDashboard } from './infrastructure/dashboard/server.ts'
 import { ConfigStore } from './infrastructure/config-store.ts'
+import { LLMConfigStore } from './infrastructure/llm-config-store.ts'
 import { ArchiveRepository } from './infrastructure/archive/repository.ts'
 import { ArchiveService } from './infrastructure/archive/service.ts'
+import { ScreenerService } from './strategies/copy-trading/screener/index.ts'
 
 export async function startBot() {
   const config = loadConfig()
   const configStore = new ConfigStore()
+  const llmConfigStore = new LLMConfigStore()
   const persisted = configStore.load()
   if (persisted) {
     config.copyTrading = { ...config.copyTrading, ...persisted }
     console.log('[transBoot] Loaded copy-trading config from JSON file')
   } else {
     console.log('[transBoot] No persisted copy-trading config found, using env defaults')
+  }
+  const persistedLlm = llmConfigStore.load()
+  if (persistedLlm) {
+    config.llm = { ...config.llm, ...persistedLlm }
+    console.log('[transBoot] Loaded LLM config from JSON file')
   }
   console.log(`[transBoot] Starting in ${config.mode.toUpperCase()} mode...`)
 
@@ -69,6 +77,13 @@ export async function startBot() {
     () => config.copyTrading.archive,
   )
   archiveService.start()
+  const screenerService = config.llm.apiKey
+    ? new ScreenerService(config.llm.apiKey, config.llm.model, config.llm.baseUrl)
+    : null
+  if (screenerService) {
+    screenerService.start()
+    console.log('[transBoot] Wallet screener initialized')
+  }
   const strategyEngine = new StrategyEngine(strategies)
 
   // Wire up event listeners
@@ -85,7 +100,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService: screenerService ?? undefined, llmConfigStore }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')
