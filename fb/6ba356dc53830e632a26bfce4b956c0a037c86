@@ -1,0 +1,30 @@
+src/infrastructure/dashboard/server.ts
+  3577481610a3d281 1325-1663
+src/infrastructure/notifier/types.ts
+  3577481610a3d281 9
+src/strategies/review/index.ts
+  3577481610a3d281 20,140
+src/infrastructure/dashboard/views.ts
+  3577481610a3d281 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "fb6ba356dc53830e632a26bfce4b956c0a037c86",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 349,
+      "total_deletions": 8,
+      "accepted_lines": 343,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/5e7e223caf53f68164d1cc704f168a4c61f60491978cc4f9941629f2068944d0"
+    }
+  }
+}
