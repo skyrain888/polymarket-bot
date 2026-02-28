@@ -1,0 +1,26 @@
+src/infrastructure/dashboard/server.ts
+  3577481610a3d281 18,35
+src/bot.ts
+  3577481610a3d281 25-30,93-107,124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "614e80fbb6da6fc6e6fe594e12751d531373c287",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 1,
+      "accepted_lines": 24,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/56e23d9dde6e17c403dfcf3646cb8f05c06a0cd50ef2ab845f19b1eef2073e6d"
+    }
+  }
+}
