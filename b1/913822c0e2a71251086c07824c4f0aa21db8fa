@@ -1,0 +1,26 @@
+src/infrastructure/storage/schema.ts
+  3577481610a3d281 64-78
+src/strategies/review/repository.ts
+  3577481610a3d281 1-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "b1913822c0e2a71251086c07824c4f0aa21db8fa",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 73,
+      "total_deletions": 0,
+      "accepted_lines": 73,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/ce3183678127bb965fcf5e640487b103356baab31c97627d7990903883a11d62"
+    }
+  }
+}
