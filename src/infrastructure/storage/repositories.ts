@@ -46,6 +46,13 @@ export class OrderRepository {
     const rows = this.db.query(`SELECT * FROM orders ORDER BY created_at DESC LIMIT ?`).all(limit) as any[]
     return rows.map(r => ({ id: r.id, strategyId: r.strategy_id, marketId: r.market_id, side: r.side, size: r.size, price: r.price, status: r.status, reason: r.reason }))
   }
+
+  findByDateRange(start: string, end: string): (OrderRow & { createdAt: string })[] {
+    const rows = this.db.query(
+      `SELECT * FROM orders WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC`
+    ).all(start, end) as any[]
+    return rows.map(r => ({ id: r.id, strategyId: r.strategy_id, marketId: r.market_id, side: r.side, size: r.size, price: r.price, status: r.status, reason: r.reason, createdAt: r.created_at }))
+  }
 }
 
 export interface PositionRow {
@@ -108,5 +115,12 @@ export class SignalRepository {
   findAll(limit = 50): SignalRow[] {
     const rows = this.db.query(`SELECT * FROM signals ORDER BY created_at DESC LIMIT ?`).all(limit) as any[]
     return rows.map(r => ({ id: r.id, marketId: r.market_id, provider: r.provider, sentiment: r.sentiment, confidence: r.confidence, summary: r.summary, rawResponse: r.raw_response }))
+  }
+
+  findByDateRange(start: string, end: string): (SignalRow & { createdAt: string })[] {
+    const rows = this.db.query(
+      `SELECT * FROM signals WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC`
+    ).all(start, end) as any[]
+    return rows.map(r => ({ id: r.id, marketId: r.market_id, provider: r.provider, sentiment: r.sentiment, confidence: r.confidence, summary: r.summary, rawResponse: r.raw_response, createdAt: r.created_at }))
   }
 }
