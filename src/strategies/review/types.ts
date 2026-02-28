@@ -43,12 +43,6 @@ export interface OrderRecord {
   createdAt: string
 }
 
-export interface SignalSummary {
-  totalSignals: number
-  byProvider: Record<string, { count: number; avgConfidence: number }>
-  signals: SignalRecord[]
-}
-
 export interface SignalRecord {
   marketId: string
   provider: string
@@ -56,6 +50,12 @@ export interface SignalRecord {
   confidence: number
   summary: string
   createdAt: string
+}
+
+export interface SignalSummary {
+  totalSignals: number
+  byProvider: Record<string, { count: number; avgConfidence: number }>
+  signals: SignalRecord[]
 }
 
 export interface AccountSnapshot {
