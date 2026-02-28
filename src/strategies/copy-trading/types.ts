@@ -1,3 +1,5 @@
+import type { ReviewConfig } from '../review/types'
+
 export type SizeMode = 'fixed' | 'proportional'
 
 export interface WalletConfig {
@@ -41,4 +43,5 @@ export interface CopyTradingConfig {
   maxTotalExposureUsdc: number
   pollIntervalSeconds: number  // how often to poll for new trades (default 30)
   archive?: ArchiveConfig
+  review?: ReviewConfig
 }
