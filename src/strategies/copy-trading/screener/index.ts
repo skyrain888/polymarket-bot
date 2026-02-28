@@ -37,10 +37,10 @@ export class ScreenerService {
 
   private config: ScreenerConfig = { ...DEFAULT_CONFIG }
 
-  constructor(apiKey: string, model?: string) {
+  constructor(apiKey: string, model?: string, baseUrl?: string) {
     this.fetcher = new DataFetcher()
     this.scorer = new ScoringEngine()
-    this.analyzer = new LLMAnalyzer(apiKey, model)
+    this.analyzer = new LLMAnalyzer(apiKey, model, baseUrl)
     this.loadResults()
   }
 
@@ -50,6 +50,11 @@ export class ScreenerService {
 
   getConfig(): ScreenerConfig {
     return { ...this.config }
+  }
+
+  updateLLM(apiKey: string, model?: string, baseUrl?: string): void {
+    this.analyzer = new LLMAnalyzer(apiKey, model, baseUrl)
+    console.log(`[Screener] LLM analyzer updated (model: ${model ?? 'default'}, baseUrl: ${baseUrl ?? 'default'})`)
   }
 
   updateConfig(cfg: Partial<ScreenerConfig>): void {

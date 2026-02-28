@@ -21,8 +21,8 @@ export class LLMAnalyzer {
   private client: Anthropic
   private model: string
 
-  constructor(apiKey: string, model = 'claude-sonnet-4-20250514') {
-    this.client = new Anthropic({ apiKey })
+  constructor(apiKey: string, model = 'claude-sonnet-4-20250514', baseUrl?: string) {
+    this.client = new Anthropic({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) })
     this.model = model
   }
 

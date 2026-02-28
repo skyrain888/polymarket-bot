@@ -12,7 +12,9 @@ import type { SizeMode } from '../../strategies/copy-trading/types.ts'
 import type { ArchiveService } from '../archive/service.ts'
 import type { ArchiveRepository } from '../archive/repository.ts'
 import type { ScreenerService } from '../../strategies/copy-trading/screener/index.ts'
+import { ScreenerService as ScreenerServiceClass } from '../../strategies/copy-trading/screener/index.ts'
 import type { ScreenerResult, ScreenerState } from '../../strategies/copy-trading/screener/types.ts'
+import type { LLMConfigStore } from '../llm-config-store.ts'
 import { overviewView, layout } from './views.ts'
 
 interface DashboardDeps {
@@ -28,6 +30,7 @@ interface DashboardDeps {
   archiveService?: ArchiveService
   archiveRepo?: ArchiveRepository
   screenerService?: ScreenerService
+  llmConfigStore?: LLMConfigStore
 }
 
 export function createDashboard(deps: DashboardDeps, port: number) {
@@ -201,25 +204,64 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     return { statusLabel, statusClass, statusKey }
   }
 
-  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }, notConfigured = false): string {
+  function maskKey(key: string): string {
+    if (!key || key.length < 8) return key ? '****' : ''
+    return key.slice(0, 4) + '****' + key.slice(-4)
+  }
+
+  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }, llmCfg: { provider: string; apiKey: string; model: string; baseUrl?: string; ollamaHost?: string }, hasScreener: boolean): string {
     const lastRun = cfg.lastRunAt ? new Date(cfg.lastRunAt * 1000).toLocaleString() : '从未'
+    const maskedKey = maskKey(llmCfg.apiKey)
+    const hasKey = !!llmCfg.apiKey
 
-    if (notConfigured) {
-      return `
-    <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
-    <div class="card" style="text-align:center;color:#888;padding:3rem">
-      <p style="margin-bottom:0.5rem">筛选功能需要配置 LLM API Key</p>
-      <p style="font-size:0.85rem">请在环境变量中设置 <code style="background:#2a2a3e;padding:2px 6px;border-radius:3px">LLM_API_KEY</code> 后重启服务</p>
+    const llmConfigForm = `
+    <div class="card" style="margin-bottom:1rem">
+      <h3 style="margin-bottom:0.75rem;color:#7c83fd">LLM 配置</h3>
+      <form hx-post="/screener/llm-config" hx-target="#screener-page" hx-swap="innerHTML"
+        style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;align-items:end">
+        <div>
+          <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:0.25rem">Provider</label>
+          <select name="provider" style="width:100%;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.4rem;border-radius:4px">
+            <option value="claude" ${llmCfg.provider === 'claude' ? 'selected' : ''}>Claude (Anthropic)</option>
+            <option value="openai" ${llmCfg.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+            <option value="gemini" ${llmCfg.provider === 'gemini' ? 'selected' : ''}>Gemini</option>
+            <option value="ollama" ${llmCfg.provider === 'ollama' ? 'selected' : ''}>Ollama (本地)</option>
+          </select>
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:0.25rem">模型</label>
+          <input name="model" value="${escHtml(llmCfg.model)}" placeholder="e.g. claude-sonnet-4-20250514"
+            style="width:100%;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.4rem;border-radius:4px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:0.25rem">API Key ${maskedKey ? `<span style="color:#555;font-size:0.8rem">(当前: ${maskedKey})</span>` : ''}</label>
+          <input name="apiKey" type="password" placeholder="${hasKey ? '留空保持不变' : '输入 API Key'}"
+            style="width:100%;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.4rem;border-radius:4px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:0.25rem">Base URL <span style="color:#555;font-size:0.8rem">(中转站地址，留空用官方)</span></label>
+          <input name="baseUrl" value="${escHtml(llmCfg.baseUrl ?? '')}" placeholder="https://api.example.com/v1"
+            style="width:100%;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.4rem;border-radius:4px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:0.25rem">Ollama Host <span style="color:#555;font-size:0.8rem">(仅 Ollama)</span></label>
+          <input name="ollamaHost" value="${escHtml(llmCfg.ollamaHost ?? '')}" placeholder="http://localhost:11434"
+            style="width:100%;background:#2a2a3e;color:#e0e0e0;border:1px solid #3a3a4e;padding:0.4rem;border-radius:4px;box-sizing:border-box">
+        </div>
+        <div style="grid-column:1/-1;display:flex;gap:0.5rem;align-items:center">
+          <button type="submit" style="background:#7c83fd;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;cursor:pointer">保存 LLM 配置</button>
+          ${hasKey ? '<span class="badge badge-ok">已配置</span>' : '<span class="badge badge-warn">未配置</span>'}
+          <span id="llm-save-status"></span>
+        </div>
+      </form>
     </div>`
-    }
 
-    return `
-    <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
+    const screenerControls = `
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
         <button hx-post="/screener/run" hx-target="#screener-content" hx-swap="innerHTML"
-          style="background:#7c83fd;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;cursor:pointer;font-size:1rem"
-          ${state.status === 'running' ? 'disabled' : ''}>
+          style="background:#7c83fd;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:6px;cursor:pointer;font-size:1rem${!hasKey ? ';opacity:0.5' : ''}"
+          ${state.status === 'running' || !hasKey ? 'disabled' : ''}>
           ${state.status === 'running' ? '筛选中...' : '开始筛选'}
         </button>
         <form hx-post="/screener/schedule" hx-target="#schedule-status" hx-swap="innerHTML" style="display:flex;gap:0.5rem;align-items:center">
@@ -233,9 +275,16 @@ export function createDashboard(deps: DashboardDeps, port: number) {
         </form>
         <span style="color:#888;font-size:0.85rem">上次筛选: ${lastRun}</span>
       </div>
-    </div>
+    </div>`
+
+    return `
+    <div id="screener-page">
+    <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
+    ${llmConfigForm}
+    ${screenerControls}
     <div id="screener-content">
       ${state.status === 'running' ? screenerProgressHtml(state) : screenerResultsHtml(state)}
+    </div>
     </div>`
   }
 
@@ -956,7 +1005,56 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     const screener = deps.screenerService
     const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
     const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
-    return c.html(layout('智能筛选', screenerPageHtml(state, cfg, !screener)))
+    const llmCfg = { provider: deps.config.llm.provider || 'claude', apiKey: deps.config.llm.apiKey || '', model: deps.config.llm.model || '', baseUrl: deps.config.llm.baseUrl, ollamaHost: deps.config.llm.ollamaHost }
+    return c.html(layout('智能筛选', screenerPageHtml(state, cfg, llmCfg, !!screener)))
+  })
+
+  app.post('/screener/llm-config', async (c) => {
+    const body = await c.req.parseBody()
+    const provider = (String(body.provider ?? 'claude')) as import('../../config/types.ts').LLMProviderName
+    const model = String(body.model ?? '').trim()
+    const apiKeyInput = String(body.apiKey ?? '').trim()
+    const baseUrl = String(body.baseUrl ?? '').trim() || undefined
+    const ollamaHost = String(body.ollamaHost ?? '').trim() || undefined
+
+    // Keep existing key if input is empty
+    const apiKey = apiKeyInput || deps.config.llm.apiKey
+
+    // Update runtime config
+    deps.config.llm.provider = provider
+    deps.config.llm.model = model || deps.config.llm.model
+    deps.config.llm.apiKey = apiKey
+    deps.config.llm.baseUrl = baseUrl
+    deps.config.llm.ollamaHost = ollamaHost
+
+    // Persist to disk
+    if (deps.llmConfigStore) {
+      deps.llmConfigStore.save({
+        provider,
+        apiKey,
+        model: deps.config.llm.model,
+        baseUrl,
+        ollamaHost,
+      })
+    }
+
+    // Create or update screener service
+    if (apiKey) {
+      if (deps.screenerService) {
+        deps.screenerService.updateLLM(apiKey, deps.config.llm.model || undefined, deps.config.llm.baseUrl)
+      } else {
+        const svc = new ScreenerServiceClass(apiKey, deps.config.llm.model || undefined, deps.config.llm.baseUrl)
+        deps.screenerService = svc
+        console.log('[Dashboard] Created new ScreenerService from LLM config')
+      }
+    }
+
+    // Return full updated page
+    const screener = deps.screenerService
+    const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
+    const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
+    const llmCfg = { provider: deps.config.llm.provider || 'claude', apiKey: deps.config.llm.apiKey || '', model: deps.config.llm.model || '', baseUrl: deps.config.llm.baseUrl, ollamaHost: deps.config.llm.ollamaHost }
+    return c.html(screenerPageHtml(state, cfg, llmCfg, !!screener))
   })
 
   app.post('/screener/run', async (c) => {

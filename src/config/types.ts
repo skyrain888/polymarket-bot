@@ -32,6 +32,7 @@ export interface BotConfig {
     provider: LLMProviderName
     apiKey: string
     model: string
+    baseUrl?: string
     ollamaHost?: string
   }
   risk: RiskConfig
