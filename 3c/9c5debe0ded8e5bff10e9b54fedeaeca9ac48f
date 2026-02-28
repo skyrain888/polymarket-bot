@@ -1,0 +1,24 @@
+src/strategies/review/index.ts
+  3577481610a3d281 1-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "3c9c5debe0ded8e5bff10e9b54fedeaeca9ac48f",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 143,
+      "total_deletions": 1,
+      "accepted_lines": 142,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/1255ab2146a2eb877fe7e0ea954563cfb24a32734e79ea378d549826e65c0b49"
+    }
+  }
+}
