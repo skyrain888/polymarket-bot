@@ -61,4 +61,19 @@ CREATE TABLE IF NOT EXISTS copy_trades_archive (
   traded_at INTEGER NOT NULL,
   archived_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS review_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  trigger_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'running',
+  data_summary TEXT,
+  pnl_analysis TEXT,
+  strategy_analysis TEXT,
+  report TEXT,
+  suggestions TEXT,
+  error TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 `
