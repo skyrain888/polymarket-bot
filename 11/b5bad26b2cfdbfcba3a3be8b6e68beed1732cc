@@ -1,0 +1,26 @@
+src/strategies/review/agents/data-collector.ts
+  3577481610a3d281 1-173
+src/infrastructure/storage/repositories.ts
+  3577481610a3d281 49-55,119-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "11b5bad26b2cfdbfcba3a3be8b6e68beed1732cc",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 191,
+      "total_deletions": 4,
+      "accepted_lines": 187,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/73306ae27ed2277812aea8cc2452b02e48dbe6cd26beb588335fcadda24eca6e"
+    }
+  }
+}
