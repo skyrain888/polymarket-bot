@@ -6,6 +6,7 @@ export type NotifyEventType =
   | 'daily_loss_limit'
   | 'llm_alert'
   | 'system'
+  | 'review_completed'
 
 export interface NotifyEvent {
   level: NotifyLevel

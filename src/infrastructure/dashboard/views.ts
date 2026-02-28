@@ -41,6 +41,7 @@ export function layout(title: string, body: string): string {
     <a href="/copy-trading">跟单</a>
     <a href="/copy-trading/history">历史存档</a>
     <a href="/screener">智能筛选</a>
+    <a href="/review">智能复盘</a>
   </nav>
   <div class="container" hx-get="/api/refresh" hx-trigger="every 5s" hx-swap="none">
     ${body}

@@ -17,7 +17,7 @@ export class ReviewService {
     private pnlAnalyzer: PnLAnalyzer,
     private strategyAnalyzer: StrategyAnalyzer,
     private coordinator: Coordinator,
-    private notifier: { notify(msg: string): void } | null,
+    private notifier: { info(type: string, message: string): Promise<void> } | null,
     private getConfig: () => ReviewConfig,
   ) {}
 
@@ -137,6 +137,6 @@ export class ReviewService {
       ...top3.map((s, i) => `${i + 1}. ${s.description}`),
       `\n详情: http://localhost:3000/review`,
     ].filter(Boolean).join('\n')
-    this.notifier.notify(msg)
+    this.notifier.info('review_completed', msg)
   }
 }
