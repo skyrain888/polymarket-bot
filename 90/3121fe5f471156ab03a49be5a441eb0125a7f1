@@ -1,0 +1,28 @@
+src/strategies/review/agents/pnl-analyzer.ts
+  3577481610a3d281 1-128
+src/strategies/review/agents/strategy-analyzer.ts
+  3577481610a3d281 1-144
+src/strategies/review/agents/coordinator.ts
+  3577481610a3d281 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "903121fe5f471156ab03a49be5a441eb0125a7f1",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 408,
+      "total_deletions": 3,
+      "accepted_lines": 405,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/76517119efb069a3139569a903aeaf436e69d4115db0081c8680cd2d2dada8fc"
+    }
+  }
+}
