@@ -22,6 +22,12 @@ import { LLMConfigStore } from './infrastructure/llm-config-store.ts'
 import { ArchiveRepository } from './infrastructure/archive/repository.ts'
 import { ArchiveService } from './infrastructure/archive/service.ts'
 import { ScreenerService } from './strategies/copy-trading/screener/index.ts'
+import { ReviewService } from './strategies/review/index.ts'
+import { ReviewRepository } from './strategies/review/repository.ts'
+import { DataCollector } from './strategies/review/agents/data-collector.ts'
+import { PnLAnalyzer } from './strategies/review/agents/pnl-analyzer.ts'
+import { StrategyAnalyzer } from './strategies/review/agents/strategy-analyzer.ts'
+import { Coordinator } from './strategies/review/agents/coordinator.ts'
 
 export async function startBot() {
   const config = loadConfig()
@@ -84,6 +90,21 @@ export async function startBot() {
     screenerService.start()
     console.log('[transBoot] Wallet screener initialized')
   }
+
+  // Review system
+  const reviewRepo = new ReviewRepository(db)
+  const getLLMConfig = () => ({ provider: config.llm.provider, apiKey: config.llm.apiKey, model: config.llm.model, baseURL: config.llm.baseUrl })
+  const dataCollector = new DataCollector(db, archiveRepo, orderRepo, signalRepo, () => copyTradingStrategy)
+  const pnlAnalyzer = new PnLAnalyzer(getLLMConfig)
+  const strategyAnalyzer = new StrategyAnalyzer(getLLMConfig)
+  const coordinator = new Coordinator(getLLMConfig)
+  const reviewService = config.llm.apiKey
+    ? new ReviewService(reviewRepo, dataCollector, pnlAnalyzer, strategyAnalyzer, coordinator, notifier, () => config.copyTrading.review ?? { enabled: false, autoReviewTime: '00:00', timezone: 'UTC' })
+    : null
+  if (reviewService) {
+    reviewService.start()
+    console.log('[transBoot] Review service initialized')
+  }
   const strategyEngine = new StrategyEngine(strategies)
 
   // Wire up event listeners
@@ -100,7 +121,7 @@ export async function startBot() {
   })
 
   // Dashboard
-  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService: screenerService ?? undefined, llmConfigStore }, config.dashboard.port)
+  createDashboard({ positionTracker, riskManager, strategyEngine, orderRepo, signalRepo, getBalance: () => polyClient.getBalance(), config, copyTradingStrategy, configStore, archiveService, archiveRepo, screenerService: screenerService ?? undefined, llmConfigStore, reviewService: reviewService ?? undefined }, config.dashboard.port)
 
   // Main loop
   console.log('[transBoot] Bot loop starting...')

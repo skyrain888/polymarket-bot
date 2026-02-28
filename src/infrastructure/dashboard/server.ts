@@ -15,6 +15,7 @@ import type { ScreenerService } from '../../strategies/copy-trading/screener/ind
 import { ScreenerService as ScreenerServiceClass } from '../../strategies/copy-trading/screener/index.ts'
 import type { ScreenerResult, ScreenerState } from '../../strategies/copy-trading/screener/types.ts'
 import type { LLMConfigStore } from '../llm-config-store.ts'
+import type { ReviewService } from '../../strategies/review/index.ts'
 import { overviewView, layout } from './views.ts'
 
 interface DashboardDeps {
@@ -31,6 +32,7 @@ interface DashboardDeps {
   archiveRepo?: ArchiveRepository
   screenerService?: ScreenerService
   llmConfigStore?: LLMConfigStore
+  reviewService?: ReviewService
 }
 
 export function createDashboard(deps: DashboardDeps, port: number) {
