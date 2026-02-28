@@ -1,0 +1,38 @@
+src/strategies/copy-trading/screener/llm-analyzer.ts
+  011136d75cd49c6b 5,7-11,13,36-37,39,41,45-46,49,52,57-59,90-92,100,106,109-110,112-114,122,128,131,136-144,148-149,154,156,159,179,181,186-187,191,214,216,221-295,339-360
+src/strategies/copy-trading/screener/index.ts
+  011136d75cd49c6b 7,23,43,57-58,61,65,69-73,86,89,98,104,108-109,119,121,126,129,133,136,141,160-162,170,191,193,203,205
+start.sh
+  011136d75cd49c6b 8-9
+src/strategies/copy-trading/screener/scoring-engine.ts
+  011136d75cd49c6b 7,17,21-22,25-27,38,44-53,55,69-78,87-88,92-100
+src/infrastructure/dashboard/server.ts
+  011136d75cd49c6b 212,273-276,323-364,368-369,377-381,383-398,401-437,443-448,456-457,459,461,474-559,1195,1243,1270-1284,1314,1318,1320
+src/strategies/copy-trading/screener/data-fetcher.ts
+  011136d75cd49c6b 6,8,13,19-23,25,28-32,37-39,41-42,44,49-50,62-66,69-73,75-83,85-90,92-97,108-124,127-137,144-146,148-149,151,156-157,168-210,212-231,234,237-238,241,246,249-250,261,266-269,278,281-282
+src/strategies/copy-trading/screener/types.ts
+  011136d75cd49c6b 10-20,25,69-112,123,125,133
+src/infrastructure/logger.ts
+  011136d75cd49c6b 40-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "ddee56254958cb7917fea4d547b2400319fb80d4",
+  "prompts": {
+    "011136d75cd49c6b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "302e9108-c7c6-428a-b64b-062426f7b588",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 855,
+      "total_deletions": 220,
+      "accepted_lines": 724,
+      "overriden_lines": 1,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/7b0f872b7948a42c14545c045378dd9198b9c48f7ad7eef0888ce39e352f0a48"
+    }
+  }
+}
