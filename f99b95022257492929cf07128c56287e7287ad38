@@ -1,0 +1,24 @@
+docs/plans/2026-03-01-review-system-plan.md
+  3577481610a3d281 1-794
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "f99b95022257492929cf07128c56287e7287ad38",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 794,
+      "total_deletions": 0,
+      "accepted_lines": 794,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/5dd30f490bf704f6115429ec17a0e03e3e40daeb36297a15a0e1b16898a1df8c"
+    }
+  }
+}
