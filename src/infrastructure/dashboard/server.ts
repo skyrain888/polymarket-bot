@@ -201,8 +201,18 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     return { statusLabel, statusClass, statusKey }
   }
 
-  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }): string {
+  function screenerPageHtml(state: ScreenerState, cfg: { scheduleCron: string; lastRunAt: number | null }, notConfigured = false): string {
     const lastRun = cfg.lastRunAt ? new Date(cfg.lastRunAt * 1000).toLocaleString() : '从未'
+
+    if (notConfigured) {
+      return `
+    <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
+    <div class="card" style="text-align:center;color:#888;padding:3rem">
+      <p style="margin-bottom:0.5rem">筛选功能需要配置 LLM API Key</p>
+      <p style="font-size:0.85rem">请在环境变量中设置 <code style="background:#2a2a3e;padding:2px 6px;border-radius:3px">LLM_API_KEY</code> 后重启服务</p>
+    </div>`
+    }
+
     return `
     <h2 style="margin-bottom:1rem">智能钱包筛选</h2>
     <div class="card" style="margin-bottom:1rem">
@@ -946,7 +956,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     const screener = deps.screenerService
     const state = screener?.getState() ?? { status: 'idle' as const, progress: 0, progressLabel: '', results: [] as ScreenerResult[], lastError: null }
     const cfg = screener?.getConfig() ?? { enabled: false, scheduleCron: 'disabled' as const, lastRunAt: null }
-    return c.html(layout('智能筛选', screenerPageHtml(state, cfg)))
+    return c.html(layout('智能筛选', screenerPageHtml(state, cfg, !screener)))
   })
 
   app.post('/screener/run', async (c) => {
