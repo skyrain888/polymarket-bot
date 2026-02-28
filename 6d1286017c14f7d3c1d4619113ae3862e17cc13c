@@ -1,0 +1,34 @@
+src/infrastructure/dashboard/server.ts
+  38fca0fd1387fe67 15,17,33,207-212,214-215,217-256,259,263-264,278-284,287,1008-1009,1012-1057
+src/strategies/copy-trading/screener/llm-analyzer.ts
+  38fca0fd1387fe67 24-25
+src/bot.ts
+  38fca0fd1387fe67 21,29,37-40,81,103
+src/strategies/copy-trading/screener/index.ts
+  38fca0fd1387fe67 40,43,55-59
+src/config/types.ts
+  38fca0fd1387fe67 35
+src/infrastructure/llm-config-store.ts
+  38fca0fd1387fe67 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "6d1286017c14f7d3c1d4619113ae3862e17cc13c",
+  "prompts": {
+    "38fca0fd1387fe67": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3debcdd-98aa-447b-bd6e-4c8892329dcf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 178,
+      "total_deletions": 29,
+      "accepted_lines": 169,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/93505a2029bbc6f13ee658845f24edd4c119b31909774db6a0104bac80c3ad7f"
+    }
+  }
+}
