@@ -1,0 +1,24 @@
+src/strategies/copy-trading/types.ts
+  3577481610a3d281 1-2,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "e9e4636928c45045d0987c7651de152f05a72085",
+  "prompts": {
+    "3577481610a3d281": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02fea8d0-e4ab-47af-a790-5cc3a563f2a8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "sky <53413907>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "messages_url": "https://tripartite-bff.tsign.cn/cas/d7099dc178360c14a2285b18337b4e617938a4971bb07b9fa0647f1f5f3a3818"
+    }
+  }
+}
