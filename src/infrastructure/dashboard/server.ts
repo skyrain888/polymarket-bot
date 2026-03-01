@@ -1569,14 +1569,197 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     </div>`
   }
 
+  function buildDataDetailHtml(data: import('../../strategies/review/types.ts').ReviewDataSummary): string {
+    const fmtUsd = (v: number) => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + v.toFixed(2)
+    const o = data.overview
+    const totalWallets = data.copyTrades.length
+    const totalWinCount = data.copyTrades.reduce((s, w) => s + w.winCount, 0)
+    const totalLossCount = data.copyTrades.reduce((s, w) => s + w.lossCount, 0)
+    const totalWinPnl = data.copyTrades.reduce((s, w) => s + w.trades.filter(t => (t.pnl ?? 0) > 0).reduce((a, t) => a + (t.pnl ?? 0), 0), 0)
+    const totalLossPnl = data.copyTrades.reduce((s, w) => s + w.trades.filter(t => (t.pnl ?? 0) < 0).reduce((a, t) => a + (t.pnl ?? 0), 0), 0)
+    const totalCopiedSize = data.copyTrades.reduce((s, w) => s + w.totalCopiedSize, 0)
+    const totalOrders = data.orders.reduce((s, o) => s + o.totalOrders, 0)
+    const totalExecuted = data.orders.reduce((s, o) => s + o.executedCount, 0)
+    const totalRejected = data.orders.reduce((s, o) => s + o.rejectedCount, 0)
+
+    // Overview grid
+    const overviewHtml = `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.85rem;color:#7c83fd;font-weight:bold;margin-bottom:0.5rem">总览</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.5rem">
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold">${o.totalTrades}</div>
+            <div style="font-size:0.75rem;color:#888">总交易数</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold">${totalWallets}</div>
+            <div style="font-size:0.75rem;color:#888">钱包数量</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold;color:${o.totalPnl >= 0 ? '#2ecc71' : '#e74c3c'}">${fmtUsd(o.totalPnl)}</div>
+            <div style="font-size:0.75rem;color:#888">总盈亏</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold">${fmtUsd(totalCopiedSize)}</div>
+            <div style="font-size:0.75rem;color:#888">总跟单金额</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold">${(o.winRate * 100).toFixed(1)}%</div>
+            <div style="font-size:0.75rem;color:#888">胜率</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold;color:#2ecc71">${totalWinCount}笔 ${fmtUsd(totalWinPnl)}</div>
+            <div style="font-size:0.75rem;color:#888">盈利</div>
+          </div>
+          <div style="background:#0d0d1a;padding:0.5rem;border-radius:4px;text-align:center">
+            <div style="font-size:1.1rem;font-weight:bold;color:#e74c3c">${totalLossCount}笔 ${fmtUsd(totalLossPnl)}</div>
+            <div style="font-size:0.75rem;color:#888">亏损</div>
+          </div>
+        </div>
+      </div>`
+
+    // Per-wallet breakdown
+    const walletRows = data.copyTrades.map(w => {
+      const tradeRows = w.trades.map(t => `<tr style="border-top:1px solid #1e1e2e">
+        <td style="padding:2px 6px;font-size:0.75rem;color:#888">${new Date(t.timestamp * 1000).toLocaleDateString()}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.title || t.marketId.slice(0, 16))}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;color:#c0a0ff">${escHtml(t.outcome || '-')}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;color:${t.side === 'buy' ? '#3498db' : '#e67e22'}">${t.side}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;text-align:right">${fmtUsd(t.copiedSize)}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;text-align:right">$${t.price.toFixed(3)}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;text-align:right">${t.currentPrice != null ? '$' + t.currentPrice.toFixed(3) : '-'}</td>
+        <td style="padding:2px 6px;font-size:0.75rem;text-align:right;color:${(t.pnl ?? 0) >= 0 ? '#2ecc71' : '#e74c3c'}">${t.pnl != null ? (t.pnl >= 0 ? '+' : '') + fmtUsd(t.pnl) : '-'}</td>
+        <td style="padding:2px 6px;font-size:0.75rem">${t.settled ? '已结算' : '持仓中'}</td>
+      </tr>`).join('')
+
+      return `<div style="margin-bottom:0.75rem;border:1px solid #2a2a3e;border-radius:6px;padding:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+          <span style="font-weight:bold;color:#7c83fd">${escHtml(w.label)}</span>
+          <span style="font-size:0.8rem;color:#888;font-family:monospace">${escHtml(w.walletAddress.slice(0, 8))}…${escHtml(w.walletAddress.slice(-4))}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:0.4rem;margin-bottom:0.5rem;font-size:0.82rem">
+          <div><span style="color:#888">交易:</span> ${w.totalTrades}笔</div>
+          <div><span style="color:#888">金额:</span> ${fmtUsd(w.totalCopiedSize)}</div>
+          <div><span style="color:#888">盈亏:</span> <span style="color:${w.totalPnl >= 0 ? '#2ecc71' : '#e74c3c'}">${fmtUsd(w.totalPnl)}</span></div>
+          <div><span style="color:#888">胜率:</span> ${(w.winRate * 100).toFixed(1)}%</div>
+          <div><span style="color:#2ecc71">赢${w.winCount}笔</span></div>
+          <div><span style="color:#e74c3c">亏${w.lossCount}笔</span></div>
+        </div>
+        ${w.trades.length > 0 ? `<details>
+          <summary style="cursor:pointer;font-size:0.78rem;color:#666;user-select:none">查看 ${w.trades.length} 笔交易明细 ▸</summary>
+          <div style="max-height:240px;overflow-y:auto;margin-top:0.4rem">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#0d0d1a;color:#666;font-size:0.72rem">
+                <th style="padding:2px 6px;text-align:left;font-weight:normal">日期</th>
+                <th style="padding:2px 6px;text-align:left;font-weight:normal">市场</th>
+                <th style="padding:2px 6px;text-align:left;font-weight:normal">结果</th>
+                <th style="padding:2px 6px;font-weight:normal">方向</th>
+                <th style="padding:2px 6px;text-align:right;font-weight:normal">金额</th>
+                <th style="padding:2px 6px;text-align:right;font-weight:normal">入场价</th>
+                <th style="padding:2px 6px;text-align:right;font-weight:normal">当前价</th>
+                <th style="padding:2px 6px;text-align:right;font-weight:normal">盈亏</th>
+                <th style="padding:2px 6px;font-weight:normal">状态</th>
+              </tr></thead>
+              <tbody>${tradeRows}</tbody>
+            </table>
+          </div>
+        </details>` : ''}
+      </div>`
+    }).join('')
+
+    const walletsHtml = totalWallets > 0 ? `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.85rem;color:#7c83fd;font-weight:bold;margin-bottom:0.5rem">钱包明细 (${totalWallets} 个)</div>
+        ${walletRows}
+      </div>` : ''
+
+    // Orders breakdown
+    const ordersHtml = data.orders.length > 0 ? `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.85rem;color:#7c83fd;font-weight:bold;margin-bottom:0.5rem">订单统计 (共 ${totalOrders} 笔: 成交 ${totalExecuted} / 拒绝 ${totalRejected})</div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead><tr style="background:#0d0d1a;color:#666;font-size:0.75rem">
+            <th style="padding:4px 8px;text-align:left;font-weight:normal">策略</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">总数</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">成交</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">拒绝</th>
+          </tr></thead>
+          <tbody>${data.orders.map(o => `<tr style="border-top:1px solid #1e1e2e">
+            <td style="padding:4px 8px">${escHtml(o.strategyId)}</td>
+            <td style="padding:4px 8px;text-align:right">${o.totalOrders}</td>
+            <td style="padding:4px 8px;text-align:right;color:#2ecc71">${o.executedCount}</td>
+            <td style="padding:4px 8px;text-align:right;color:#e74c3c">${o.rejectedCount}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : ''
+
+    // Signals breakdown
+    const sig = data.signals
+    const providerRows = Object.entries(sig.byProvider).map(([name, info]) =>
+      `<tr style="border-top:1px solid #1e1e2e">
+        <td style="padding:4px 8px">${escHtml(name)}</td>
+        <td style="padding:4px 8px;text-align:right">${info.count}</td>
+        <td style="padding:4px 8px;text-align:right">${(info.avgConfidence * 100).toFixed(1)}%</td>
+      </tr>`
+    ).join('')
+    const signalsHtml = sig.totalSignals > 0 ? `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.85rem;color:#7c83fd;font-weight:bold;margin-bottom:0.5rem">信号统计 (共 ${sig.totalSignals} 条)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead><tr style="background:#0d0d1a;color:#666;font-size:0.75rem">
+            <th style="padding:4px 8px;text-align:left;font-weight:normal">来源</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">数量</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">平均置信度</th>
+          </tr></thead>
+          <tbody>${providerRows}</tbody>
+        </table>
+      </div>` : ''
+
+    // Account snapshots
+    const snapshotsHtml = data.accountSnapshots.length > 0 ? `
+      <div>
+        <div style="font-size:0.85rem;color:#7c83fd;font-weight:bold;margin-bottom:0.5rem">账户快照 (${data.accountSnapshots.length} 条)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+          <thead><tr style="background:#0d0d1a;color:#666;font-size:0.75rem">
+            <th style="padding:4px 8px;text-align:left;font-weight:normal">日期</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">余额</th>
+            <th style="padding:4px 8px;text-align:right;font-weight:normal">总盈亏</th>
+          </tr></thead>
+          <tbody>${data.accountSnapshots.map(s => `<tr style="border-top:1px solid #1e1e2e">
+            <td style="padding:4px 8px">${escHtml(s.snapshotDate)}</td>
+            <td style="padding:4px 8px;text-align:right">${fmtUsd(s.balance)}</td>
+            <td style="padding:4px 8px;text-align:right;color:${s.totalPnl >= 0 ? '#2ecc71' : '#e74c3c'}">${fmtUsd(s.totalPnl)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : ''
+
+    return `
+      <div style="margin-top:1rem">
+        <details>
+          <summary style="cursor:pointer;color:#7c83fd;font-weight:bold;padding:0.5rem 0;user-select:none;font-size:0.95rem">
+            📋 复盘原始数据明细 (${data.periodStart} ~ ${data.periodEnd}) ▸
+          </summary>
+          <div style="margin-top:0.75rem;padding:1rem;background:#12121e;border-radius:6px">
+            ${overviewHtml}
+            ${walletsHtml}
+            ${ordersHtml}
+            ${signalsHtml}
+            ${snapshotsHtml}
+          </div>
+        </details>
+      </div>`
+  }
+
   function reviewReportCardHtml(row: import('../../strategies/review/types.ts').ReviewReportRow): string {
     let report: import('../../strategies/review/types.ts').ReviewReport | null = null
     let pnlAnalysis: import('../../strategies/review/types.ts').PnLReport | null = null
     let strategyAnalysis: import('../../strategies/review/types.ts').StrategyReport | null = null
+    let dataSummary: import('../../strategies/review/types.ts').ReviewDataSummary | null = null
     let suggestions: import('../../strategies/review/types.ts').Suggestion[] = []
     try { if (row.report) report = JSON.parse(row.report) } catch {}
     try { if (row.pnl_analysis) pnlAnalysis = JSON.parse(row.pnl_analysis) } catch {}
     try { if (row.strategy_analysis) strategyAnalysis = JSON.parse(row.strategy_analysis) } catch {}
+    try { if (row.data_summary) dataSummary = JSON.parse(row.data_summary) } catch {}
     try { if (row.suggestions) suggestions = JSON.parse(row.suggestions) } catch {}
 
     if (!report) {
@@ -1604,7 +1787,9 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       </div>`
     }).join('') : '<div style="color:#888">暂无建议</div>'
 
-    return reviewReportInnerHtml(row, report, pnlAnalysis, strategyAnalysis, scoreColor, findingsHtml, suggestionsHtml)
+    const dataDetailHtml = dataSummary ? buildDataDetailHtml(dataSummary) : ''
+
+    return reviewReportInnerHtml(row, report, pnlAnalysis, strategyAnalysis, scoreColor, findingsHtml, suggestionsHtml, dataDetailHtml)
   }
 
   function reviewReportInnerHtml(
@@ -1615,6 +1800,7 @@ export function createDashboard(deps: DashboardDeps, port: number) {
     scoreColor: string,
     findingsHtml: string,
     suggestionsHtml: string,
+    dataDetailHtml: string = '',
   ): string {
     const pnlHtml = pnlAnalysis ? `
       <div style="margin-top:1rem">
@@ -1657,7 +1843,8 @@ export function createDashboard(deps: DashboardDeps, port: number) {
       <div style="margin-bottom:1rem"><h4 style="color:#7c83fd;margin-bottom:0.5rem">综合评估</h4><div style="font-size:0.9rem;color:#ccc;white-space:pre-wrap">${escHtml(report.comprehensiveAssessment)}</div></div>
       <div style="margin-bottom:1rem"><h4 style="color:#7c83fd;margin-bottom:0.5rem">盈亏分析</h4>${pnlHtml || '<div style="color:#888">暂无数据</div>'}</div>
       <div style="margin-bottom:1rem"><h4 style="color:#7c83fd;margin-bottom:0.5rem">策略分析</h4>${stratHtml || '<div style="color:#888">暂无数据</div>'}</div>
-      <div><h4 style="color:#7c83fd;margin-bottom:0.5rem">优化建议</h4>${suggestionsHtml}</div>
+      <div style="margin-bottom:1rem"><h4 style="color:#7c83fd;margin-bottom:0.5rem">优化建议</h4>${suggestionsHtml}</div>
+      ${dataDetailHtml}
     `
   }
 

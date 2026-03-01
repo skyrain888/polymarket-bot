@@ -6,7 +6,21 @@
       "label": "JuicySlots",
       "sizeMode": "proportional",
       "proportionPct": 0.06,
-      "maxCopiesPerMarket": 3
+      "maxCopiesPerMarket": 100
+    },
+    {
+      "address": "0xd12cba563f08a96846b50c4d0047443741ccf2d4",
+      "label": "dingaaaa",
+      "sizeMode": "proportional",
+      "proportionPct": 0.03,
+      "maxCopiesPerMarket": 200
+    },
+    {
+      "address": "0x8f42ae0a01c0383c7ca8bd060b86a645ee74b88f",
+      "label": "cashy",
+      "sizeMode": "proportional",
+      "proportionPct": 0.06,
+      "maxCopiesPerMarket": 300
     }
   ],
   "maxDailyTradesPerWallet": 30,
